@@ -1,0 +1,16 @@
+﻿#ifndef DEFINE_H
+#define DEFINE_H
+
+#define VALIDATIONNUMBER 0x5678
+
+#define VERSION_COMMUNICATION 0
+#define VERSION_SERVERLIST 1
+#define VERSION_STRING "1.0.0"
+
+#define ACTION_GETINFO 0
+
+#define GETINFO_ERROR 99
+#define GETINFO_OK 88
+
+#endif // DEFINE_H
+

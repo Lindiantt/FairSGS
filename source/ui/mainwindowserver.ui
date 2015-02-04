@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindowServer</class>
+ <widget class="QMainWindow" name="MainWindowServer">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>682</width>
+    <height>487</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>MainWindow</string>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QHBoxLayout" name="horizontalLayout">
+    <property name="leftMargin">
+     <number>1</number>
+    </property>
+    <property name="topMargin">
+     <number>1</number>
+    </property>
+    <property name="rightMargin">
+     <number>1</number>
+    </property>
+    <property name="bottomMargin">
+     <number>1</number>
+    </property>
+    <item>
+     <widget class="QTextEdit" name="textEditServer">
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOff</enum>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>682</width>
+     <height>23</height>
+    </rect>
+   </property>
+   <widget class="QMenu" name="menu">
+    <property name="title">
+     <string>管理</string>
+    </property>
+    <addaction name="actionClear"/>
+    <addaction name="actionManageConnection"/>
+    <addaction name="actionBanList"/>
+    <addaction name="actionUserDatabase"/>
+    <addaction name="separator"/>
+    <addaction name="actionHide"/>
+    <addaction name="actionClose"/>
+   </widget>
+   <addaction name="menu"/>
+  </widget>
+  <action name="actionManageConnection">
+   <property name="text">
+    <string>查看连接...</string>
+   </property>
+  </action>
+  <action name="actionBanList">
+   <property name="text">
+    <string>封禁列表...</string>
+   </property>
+  </action>
+  <action name="actionUserDatabase">
+   <property name="text">
+    <string>用户数据库...</string>
+   </property>
+  </action>
+  <action name="actionClose">
+   <property name="text">
+    <string>关闭服务器</string>
+   </property>
+  </action>
+  <action name="actionHide">
+   <property name="text">
+    <string>隐藏窗口</string>
+   </property>
+  </action>
+  <action name="actionClear">
+   <property name="text">
+    <string>清空日志</string>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
