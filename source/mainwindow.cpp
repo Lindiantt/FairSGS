@@ -3,6 +3,7 @@
 
 #include <qmessagebox.h>
 #include <qhostaddress.h>
+#include <QNetworkInterface>
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -12,6 +13,7 @@ MainWindow::MainWindow(QWidget *parent) :
     settings=new QSettings(s+"/fairsgs.ini",QSettings::IniFormat);
     dialogPersonalSettings=NULL;
     mwServerList=NULL;
+    network=new QNetworkAccessManager();
 
     ui->setupUi(this);
 
@@ -25,7 +27,7 @@ MainWindow::MainWindow(QWidget *parent) :
     s=settings->value("serveraddress","127.0.0.1:5678").toString();
     ui->comboBoxServerAddress->setCurrentText(s);
     int i;
-    i=settings->value("validationmode",0).toInt();
+    i=settings->value("authmode",0).toInt();
     bool b;
     switch (i) {
     case 0:
@@ -72,8 +74,8 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->checkBoxFeng->setChecked(b);
     b=settings->value("huo",true).toBool();
     ui->checkBoxHuo->setChecked(b);
-    b=settings->value("ling",true).toBool();
-    ui->checkBoxLing->setChecked(b);
+    b=settings->value("lin",true).toBool();
+    ui->checkBoxLin->setChecked(b);
     b=settings->value("shan",true).toBool();
     ui->checkBoxShan->setChecked(b);
     b=settings->value("yijiang",true).toBool();
@@ -106,7 +108,7 @@ MainWindow::MainWindow(QWidget *parent) :
         comboBoxShen[i]->setCurrentIndex(j);
     }
     //密码页
-    i=settings->value("validationmode",0).toInt();
+    i=settings->value("authmode",0).toInt();
     switch(i)
     {
     case 0:
@@ -248,7 +250,7 @@ void MainWindow::saveClientConfig()
         i=1;
     else
         i=2;
-    settings->setValue("validationmode",i);
+    settings->setValue("authmode",i);
     settings->endGroup();
 }
 
@@ -272,7 +274,7 @@ void MainWindow::saveServerConfig()
     //武将扩展包页
     settings->setValue("feng",ui->checkBoxFeng->isChecked());
     settings->setValue("huo",ui->checkBoxHuo->isChecked());
-    settings->setValue("ling",ui->checkBoxLing->isChecked());
+    settings->setValue("lin",ui->checkBoxLin->isChecked());
     settings->setValue("shan",ui->checkBoxShan->isChecked());
     settings->setValue("yijiang",ui->checkBoxYiJiang->isChecked());
     settings->setValue("yijiang2012",ui->checkBoxYiJiang2012->isChecked());
@@ -296,7 +298,7 @@ void MainWindow::saveServerConfig()
         i=1;
     else
         i=2;
-    settings->setValue("validationmode",i);
+    settings->setValue("authmode",i);
     settings->setValue("password",ui->lineEditPassword->text());
     settings->setValue("allowregister",ui->checkBoxAllowRegister->isChecked());
     //杂项页
@@ -311,6 +313,31 @@ void MainWindow::saveServerConfig()
     settings->setValue("joingame",ui->checkBoxJoinGame->isChecked());
 
     settings->endGroup();
+}
+
+QByteArray MainWindow::generateUID()
+{
+    auto it=QNetworkInterface::allInterfaces();
+    auto ba=it[0].hardwareAddress().toLocal8Bit();
+    QCryptographicHash hash(QCryptographicHash::Sha1);
+    hash.addData(ba);
+    return hash.result();
+}
+
+void MainWindow::setupDB()
+{
+    if(!db.isValid())
+    {
+        db=QSqlDatabase::addDatabase("QSQLITE");
+        db.setDatabaseName("user.db");
+        if(!db.open())
+        {
+            QMessageBox::about(nullptr,"错误","无法打开用户数据库！");
+            return;
+        }
+        QSqlQuery query(db);
+        query.exec("CREATE  TABLE  IF NOT EXISTS \"user\" (\"username\" VARCHAR PRIMARY KEY  NOT NULL  UNIQUE , \"password\" CHAR NOT NULL )");
+    }
 }
 
 void MainWindow::on_actionExit_triggered()
@@ -408,7 +435,6 @@ void MainWindow::on_actionPersonalSettings_triggered()
     if(!dialogPersonalSettings)
     {
         dialogPersonalSettings=new DialogPersonalSettings(this);
-        dialogPersonalSettings->setModal(true);
     }
     dialogPersonalSettings->initVar();
     dialogPersonalSettings->show();
@@ -419,8 +445,13 @@ void MainWindow::on_pushButtonFindServer_clicked()
     if(!mwServerList)
     {
         mwServerList=new MainWindowServerList(this);
-        mwServerList->setWindowModality(Qt::ApplicationModal);
     }
-    mwServerList->show();
     mwServerList->initWindow();
+    mwServerList->showMaximized();
+}
+
+void MainWindow::on_pushButtonStartServer_clicked()
+{
+    server=new CServer();
+    //显示窗口...
 }

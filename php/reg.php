@@ -1,8 +1,27 @@
 <?php
+error_reporting(0);
 if(!array_key_exists('p',$_GET)) die();
 $port=intval($_GET['p']);
 if(!($port>0&&$port<=65535)) die();
-if($_SERVER['REMOTE_PORT']!=$_GET['p']) die('1');
+//检查外部端口是否开放
+$socket=fsockopen($_SERVER['REMOTE_ADDR'],$port,$errno,$errstr,10);
+if(!$socket)
+	die('1');
+else
+{
+	$verify=pack('v',0x5678);
+	$operation=pack('C',0);
+	$cv=pack('v',0);
+	stream_set_timeout($socket,10);
+	if(!fwrite($socket,$verify.$cv.$operation)) die('1');
+	$r=fread($socket,1);
+	if($r===false||strlen($r)!=1) die('1');
+	else
+	{
+		$r=unpack('C',$r);
+		if($r[1]!=88&&$r[1]!=99) die('1');
+	}
+}
 require('settings.php');
 $version=pack('v',1);
 //将IP端口转化为二进制
@@ -30,7 +49,7 @@ if($file!==false)
 		{
 			$timestamp=substr($file,$i+6,4);
 			$timestamp2=unpack('L',$timestamp);
-			if($timestamp2<$time-3600)
+			if($timestamp2[1]<$time-3600)
 			{
 				$cut=true;
 				break;
@@ -60,7 +79,7 @@ if($file!==false)
 					{
 						$timestamp=substr($filefull,$i+6,4);
 						$timestamp2=unpack('L',$timestamp);
-						if($timestamp2<$time-3600) break;
+						if($timestamp2[1]<$time-3600) break;
 						$addrport=substr($filefull,$i,6);
 						if($addrport===$val) continue;
 						$newfilefull.=$addrport.$timestamp;

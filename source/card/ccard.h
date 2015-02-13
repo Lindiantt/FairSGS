@@ -36,6 +36,22 @@
 #define CARDTYPE_LEBUSISHU 13
 #define CARDTYPE_BINGLIANGCUNDUAN 14
 
+#define CARDTYPE_ZHUGELIANNU 0
+#define CARDTYPE_CIXIONGSHUANGGUJIAN 1
+#define CARDTYPE_QINGGANGJIAN 2
+#define CARDTYPE_QINGLONGYANYUEDAO 3
+#define CARDTYPE_ZHANGBASHEMAO 4
+#define CARDTYPE_GUANSHIFU 5
+#define CARDTYPE_FANGTIANHUAJI 6
+#define CARDTYPE_QILINGONG 7
+#define CARDTYPE_BAGUAZHEN 8
+#define CARDTYPE_HANBINGJIAN 9
+#define CARDTYPE_RENWANGDUN 10
+#define CARDTYPE_GUDINGDAO 11
+#define CARDTYPE_TENGJIA 12
+#define CARDTYPE_BAIYINSHIZI 13
+#define CARDTYPE_ZHUQUEYUSHAN 14
+#define CARDTYPE_MUNIULIUMA 15
 
 #define SUIT_HONGTAO 0
 #define SUIT_FANGKUAI 1
@@ -47,6 +63,8 @@
 #define CARDPACKAGE_EX 1
 #define CARDPACKAGE_JUNZHENG 2
 #define CARDPACKAGE_JIEXIANTUPO 3
+
+class CPlayer;
 
 class CCard
 {
@@ -64,10 +82,97 @@ public:
 class CCardZhuangbei: public CCard
 {
 public:
-    virtual void wearEvent();
-    virtual void takeOffEvent();
-    virtual void moveEvent();
-    virtual void callback(int phase);
+    bool active;
+    virtual void wearEvent(CPlayer *);
+    virtual void takeOffEvent(CPlayer *);
+    virtual void moveEvent(CPlayer *,CPlayer *);
+    virtual void callback(CPlayer *,int phase);
+};
+
+class CCardWuqi: public CCardZhuangbei
+{
+public:
+    int distance;
+};
+
+class CCardZhugeliannu: public CCardWuqi
+{
+
+};
+
+class CCardCixiongshuanggujian :public CCardWuqi
+{
+
+};
+
+class CCardQinggangjian:public CCardWuqi
+{
+
+};
+
+class CCardQinglongyanyuedao:public CCardWuqi
+{
+
+};
+
+class CCardZhangbashemao:public CCardWuqi
+{
+
+};
+
+class CCardGuanshifu:public CCardWuqi
+{
+
+};
+
+class CCardFangtianhuaji:public CCardWuqi
+{
+
+};
+
+class CCardQilingong:public CCardWuqi
+{
+
+};
+
+class CCardBaguazhen:public CCardZhuangbei
+{
+
+};
+
+class CCardHanbingjian:public CCardZhuangbei
+{
+
+};
+
+class CCardRenwangdun :public CCardZhuangbei
+{
+
+};
+
+class CCardGudingdao:public CCardWuqi
+{
+
+};
+
+class CCardTengjia:public CCardZhuangbei
+{
+
+};
+
+class CCardBaiyinshizi:public CCardZhuangbei
+{
+
+};
+
+class CCardZhuqueyushan:public CCardWuqi
+{
+
+};
+
+class CCardMuniuliuma:public CCardZhuangbei
+{
+
 };
 
 

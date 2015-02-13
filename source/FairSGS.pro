@@ -11,6 +11,7 @@ greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 TARGET = FairSGS
 TEMPLATE = app
 
+CONFIG += c++11
 
 SOURCES += main.cpp\
         mainwindow.cpp \
@@ -27,7 +28,11 @@ SOURCES += main.cpp\
     network/croom.cpp \
     ui/mainwindowserverlist.cpp \
     network/cserverlist.cpp \
-    network/cslsockethandle.cpp
+    network/cslsockethandle.cpp \
+    ui/dialogslsettings.cpp \
+    network/qtupnpportmapping.cpp \
+    network/qtupnpportmappingsocket.cpp \
+    network/cplayersocket.cpp
 
 HEADERS  += mainwindow.h \
     general/init.h \
@@ -44,9 +49,14 @@ HEADERS  += mainwindow.h \
     ui/mainwindowserverlist.h \
     network/cserverlist.h \
     network/cslsockethandle.h \
-    network/define.h
+    network/define.h \
+    ui/dialogslsettings.h \
+    network/qtupnpportmapping.h \
+    network/qtupnpportmappingsocket.h \
+    network/cplayersocket.h
 
 FORMS    += mainwindow.ui \
     ui/mainwindowserver.ui \
     ui/dialogpersonalsettings.ui \
-    ui/mainwindowserverlist.ui
+    ui/mainwindowserverlist.ui \
+    ui/dialogslsettings.ui

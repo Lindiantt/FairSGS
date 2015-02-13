@@ -10,6 +10,7 @@ DialogPersonalSettings::DialogPersonalSettings(QWidget *parent) :
     QDialog(parent),
     ui(new Ui::DialogPersonalSettings)
 {
+    setFixedSize(211,160);
     ui->setupUi(this);
 }
 
@@ -38,7 +39,7 @@ void DialogPersonalSettings::on_pushButtonCancel_clicked()
 void DialogPersonalSettings::on_pushButtonOK_clicked()
 {
     QString s=ui->lineEditNick->text();
-    if(s.contains(' ')||s.contains('　'))
+    if(s.contains(' ')||s.contains("　"))
     {
         QMessageBox::about(this,"错误","昵称不能包含空格");
         return;

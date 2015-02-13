@@ -3,6 +3,8 @@
 
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
+#include <QLinkedList>
+#include <qdatetime.h>
 
 
 class CServerList:public QObject
@@ -11,15 +13,19 @@ class CServerList:public QObject
 public:
     CServerList();
     ~CServerList();
-    requestList();
-    QNetworkAccessManager *network;
+    void requestList();
+    void refresh();
+
     QLinkedList<QPair<quint32,quint16> > leftServers;
 
 private slots:
-    replyFinished(QNetworkReply*);
+    void replyFinished();
 private:
-    bool firstload,stop;
-    void addAddress(quint32,quint16);
+    bool firstload,stop,loading;
+    void addAddress(int,quint32,quint16);
+    void initVar();
+    QDateTime lastTime;
+    QNetworkReply* networkReply;
 };
 
 #endif // CSERVERLIST_H

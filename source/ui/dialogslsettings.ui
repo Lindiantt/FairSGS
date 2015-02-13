@@ -1,77 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>DialogPersonalSettings</class>
- <widget class="QDialog" name="DialogPersonalSettings">
+ <class>DialogSLSettings</class>
+ <widget class="QDialog" name="DialogSLSettings">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>211</width>
-    <height>160</height>
+    <width>400</width>
+    <height>190</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>个人设置</string>
+   <string>高级设置</string>
   </property>
   <property name="modal">
    <bool>true</bool>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QWidget" name="widget" native="true">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <layout class="QHBoxLayout" name="horizontalLayout">
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QLabel" name="label">
-        <property name="text">
-         <string>昵称：</string>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLineEdit" name="lineEditNick">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="maxLength">
-         <number>10</number>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="checkBoxAllowLookHands">
+    <widget class="QLabel" name="label">
      <property name="text">
-      <string>允许旁观手牌</string>
+      <string>服务器列表下载地址：</string>
      </property>
     </widget>
    </item>
    <item>
-    <widget class="QCheckBox" name="checkBoxAllowLookIdentity">
+    <widget class="QLineEdit" name="lineEditDownload"/>
+   </item>
+   <item>
+    <widget class="QLabel" name="label_2">
      <property name="text">
-      <string>允许旁观身份</string>
+      <string>服务器列表注册地址：</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="lineEditReg"/>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="checkBoxAutoGetInfo">
+     <property name="text">
+      <string>自动获取服务器简略信息</string>
      </property>
     </widget>
    </item>
@@ -83,14 +52,14 @@
      <property name="sizeHint" stdset="0">
       <size>
        <width>20</width>
-       <height>40</height>
+       <height>47</height>
       </size>
      </property>
     </spacer>
    </item>
    <item>
-    <widget class="QWidget" name="widget_2" native="true">
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
+    <widget class="QWidget" name="widget" native="true">
+     <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
        <widget class="QPushButton" name="pushButtonOK">
         <property name="sizePolicy">
@@ -104,6 +73,19 @@
         </property>
         <property name="default">
          <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pushButtonDefualt">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>默认</string>
         </property>
        </widget>
       </item>

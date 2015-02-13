@@ -12,7 +12,7 @@ CSLSocketHandle::CSLSocketHandle(QHostAddress &address,quint16 port,QTableWidget
     this->hostaddress=address;
     this->port=port;
     this->item=item;
-    connect(&timer,SIGNAL(timeout()),this,SLOT(handleTimeout()));
+    connect(&timer,timer.timeout,this,this->handleTimeout);
 }
 
 CSLSocketHandle::~CSLSocketHandle()
@@ -20,23 +20,26 @@ CSLSocketHandle::~CSLSocketHandle()
     if(socket)
     {
         socket->deleteLater();
+        int i=item->row();
         QTableWidgetItem *ti;
         ti=w->mwServerList->ui->tableWidgetServerList->item(i,1);
-        if(ti->text()=="连接中")
+        if(ti->text()!="")
         {
             ti->setText("无法连接");
             ti->setTextColor(QColor(255,0,0));
         }
     }
+    item->setData(Qt::UserRole,0);
     w->mwServerList->socketFinished();
 }
 
 void CSLSocketHandle::getInfo()
 {
     socket=new QTcpSocket;
-    connect(socket,SIGNAL(connected()),this,SLOT(handleConnected()));
-    connect(socket,SIGNAL(readyRead()),this,SLOT(handleRead()));
-    connect(socket,SIGNAL(disconnected()),this,SLOT(handleDisconnected()));
+    connect(socket,socket->connected,this,this->handleConnected);
+    connect(socket,socket->readyRead,this,this->handleRead);
+    connect(socket,socket->disconnected,this,this->handleDisconnected);
+    connect(socket,SIGNAL(error(QAbstractSocket::SocketError)),this,SLOT(handleError(QAbstractSocket::SocketError)));
     lastTime=QDateTime::currentDateTime();
     int i=item->row();
     QTableWidgetItem *ti;
@@ -45,6 +48,11 @@ void CSLSocketHandle::getInfo()
     ti->setTextColor(QColor(0,0,0));
     socket->connectToHost(hostaddress,port);
     timer.start(5000);
+}
+
+void CSLSocketHandle::handleError(QAbstractSocket::SocketError)
+{
+    this->deleteLater();
 }
 
 void CSLSocketHandle::handleTimeout()
@@ -76,14 +84,14 @@ void CSLSocketHandle::handleConnected()
         ti->setTextColor(QColor(255,0,0));
     }
     unsigned char buf[5];
-    buf[2]=ACTION_GETINFO;
+    buf[4]=ACTION_GETINFO;
     quint16 u=VALIDATIONNUMBER;
     u=qToLittleEndian(u);
     memcpy(buf,&u,2);
     u=VERSION_COMMUNICATION;
     u=qToLittleEndian(u);
-    memcpy(buf+3,&u,2);
-    socket->write(buf,5);
+    memcpy(buf+2,&u,2);
+    socket->write((char*)buf,5);
     timer.start(5000);
 }
 
@@ -95,49 +103,49 @@ void CSLSocketHandle::handleDisconnected()
 void CSLSocketHandle::handleRead()
 {
     unsigned char buf[3],*bu;
-    socket->read(buf,1);
+    socket->read((char*)buf,1);
     int i=item->row();
     QTableWidgetItem *ti;
     QTableWidget* tw=w->mwServerList->ui->tableWidgetServerList;
     ti=tw->item(i,2);
     switch (buf[0]) {
-    case GETINFO_ERROR:
+    case NETWORK_ERROR_VERSION:
     {
         if(socket->bytesAvailable()<1)
         {
             infoError(ti);
             break;
         }
-        socket->read(buf,1);
+        socket->read((char*)buf,1);
         if(socket->bytesAvailable()<buf[0])
         {
             infoError(ti);
             break;
         }
         bu=new unsigned char[buf[0]];
-        socket->read(bu,buf[0]);
+        socket->read((char*)bu,buf[0]);
         QString s;
-        s=s.fromUtf8(bu,buf[0]);
+        s=s.fromUtf8((char*)bu,buf[0]);
         ti->setText("不兼容("+s+")");
         ti->setTextColor(QColor(255,0,0));
         delete[] bu;
     }
         break;
-    case GETINFO_OK:
+    case NETWORK_OK:
     {
         if(socket->bytesAvailable()<3)
         {
             infoError(ti);
             break;
         }
-        socket->read(buf,3);
+        socket->read((char*)buf,3);
         unsigned char k;
         //模式
         k=buf[0]&0xf0;
         k>>=4;
         ti=tw->item(i,3);
         QString s;
-        s=s::number(k)+"人";
+        s=s.number(k)+"人";
         if(buf[0]&0b00001000) s+="双内";
         ti->setText(s);
         //验证方式
@@ -163,23 +171,23 @@ void CSLSocketHandle::handleRead()
         //神将
         k=((*(quint16*)buf)&0b110000000)>>7;
         switch (k) {
-        case 0:
+        case SHENMODE_BAN:
             s="禁止";
             break;
-        case 1:
+        case SHENMODE_DEFAULT:
             s="默认";
             break;
-        case 2:
+        case SHENMODE_CUSTOM:
             s="自定义";
             break;
         default:
-            s=""
+            s="";
             break;
         }
         ti=tw->item(i,7);
         //人数
         k=buf[1]&0b01111111;
-        s=s::number(k);
+        s=s.number(k);
         ti=tw->item(i,4);
         ti->setText(s);
         ti=tw->item(i,2);
@@ -189,8 +197,8 @@ void CSLSocketHandle::handleRead()
         if(buf[2]&&socket->bytesAvailable()>=buf[2])
         {
             bu=new unsigned char[buf[2]];
-            socket->read(bu,buf[2]);
-            s=s.fromUtf8(bu);
+            socket->read((char*)bu,buf[2]);
+            s=s.fromUtf8((char*)bu);
             ti=tw->item(i,6);
             ti->setText(s);
             delete[] bu;

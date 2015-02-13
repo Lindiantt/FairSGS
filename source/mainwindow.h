@@ -7,6 +7,8 @@
 #include <qpair.h>
 #include "ui/dialogpersonalsettings.h"
 #include "ui/mainwindowserverlist.h"
+#include "network/cserver.h"
+#include <QtSql>
 
 namespace Ui {
 class MainWindow;
@@ -20,12 +22,17 @@ public:
     explicit MainWindow(QWidget *parent = 0);
     ~MainWindow();
     bool splitAddress(const QString &, QString &hostname, quint16 &port);
+    QByteArray generateUID();
+    void setupDB();
 
     Ui::MainWindow *ui;
     QComboBox* comboBoxShen[8];
     QSettings *settings;
     DialogPersonalSettings *dialogPersonalSettings;
     MainWindowServerList *mwServerList;
+    QNetworkAccessManager *network;
+    CServer *server;
+    QSqlDatabase db;
 
 private slots:
     void on_actionExit_triggered();
@@ -51,6 +58,8 @@ private slots:
     void on_actionPersonalSettings_triggered();
 
     void on_pushButtonFindServer_clicked();
+
+    void on_pushButtonStartServer_clicked();
 
 private:
     QByteArray savedPassword;
