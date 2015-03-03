@@ -1,11 +1,12 @@
 ﻿#ifndef CPLAYERSOCKET_H
 #define CPLAYERSOCKET_H
 
-#include <QTcpSocket>
-#include "network/define.h"
-#include <qtimer.h>
+#include "pch.h"
+
 
 class CServer;
+class CPlayerServer;
+class CRoom;
 
 class CPlayerSocket : public QObject
 {
@@ -13,20 +14,37 @@ class CPlayerSocket : public QObject
 public:
     explicit CPlayerSocket(QTcpSocket* socket,QObject *parent = 0);
     ~CPlayerSocket();
+    void send(QByteArray &);
+    void setUdpPort(quint16 port);
+    QByteArray info();
     QTcpSocket* socket;
     int state;
     QTimer timer;
-    char machineCode[20];
-
+    QString nick;
+    QHostAddress hostAddress;
+    CPlayerServer *player;
+    CRoom *currentRoom;
+    quint16 bytesRemain;
+    quint16 udpPort;
+    quint16 favorite;
+    bool udpAvailable;
+    int udpCode;
+    bool admin,roomHost,ready;
+    quint8 roomPosition;
 signals:
 
 public slots:
 private:
     CServer* server;
-    uint waitFor;
+
     bool rhInit();
     bool rhVerified();
     bool rhConnected();
+    bool rhChooseRoom();
+    void joinRoom(CRoom*);
+    void onlookRoom(CRoom*);
+    void chooseRoom();
+    QByteArray roomPage(uint page);
 private slots:
     void handleRead();
     void handleDisconnected();

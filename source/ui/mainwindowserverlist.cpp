@@ -6,6 +6,9 @@
 #include "ui_mainwindow.h"
 extern MainWindow *w;
 
+#include "network/cserverlist.h"
+#include "dialogslsettings.h"
+
 MainWindowServerList::MainWindowServerList(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindowServerList)

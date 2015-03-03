@@ -1,11 +1,7 @@
 ﻿#ifndef CSERVERLIST_H
 #define CSERVERLIST_H
 
-#include <QNetworkAccessManager>
-#include <QNetworkReply>
-#include <QLinkedList>
-#include <qdatetime.h>
-
+#include "pch.h"
 
 class CServerList:public QObject
 {

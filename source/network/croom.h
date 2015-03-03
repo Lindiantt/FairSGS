@@ -1,14 +1,26 @@
 ﻿#ifndef CROOM_H
 #define CROOM_H
 
-#include "game/cgame.h"
+#include "pch.h"
 
-class CRoom
+class CGame;
+class CPlayerSocket;
+class CServer;
+
+class CRoom:public QObject
 {
+    Q_OBJECT
 public:
-    CRoom();
+    CRoom(CServer*);
     ~CRoom();
+    int emptySeat();
+    void join(CPlayerSocket*);
+    void sendRoomInfo();
     CGame* game;
+    QHash<int,CPlayerSocket*> players;
+    QList<CPlayerSocket*> onlooker;
+    CServer *server;
+    uint id;
 };
 
 #endif // CROOM_H

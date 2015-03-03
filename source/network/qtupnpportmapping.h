@@ -1,7 +1,6 @@
 ﻿#ifndef QTUPNPPORTMAPPING_H
 #define QTUPNPPORTMAPPING_H
 
-#include <QUdpSocket>
 #include "qtupnpportmappingsocket.h"
 
 #define UPNPPORTMAPPING_STATE_INIT 0

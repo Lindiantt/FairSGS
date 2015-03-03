@@ -2,11 +2,12 @@
 #define MAINWINDOWSERVERLIST_H
 
 #include <QMainWindow>
-#include "network/cserverlist.h"
-#include <qhostaddress.h>
 #include <QStatusBar>
-#include "ui/dialogslsettings.h"
 #include <qmenu.h>
+
+
+class CServerList;
+class DialogSLSettings;
 
 namespace Ui {
 class MainWindowServerList;

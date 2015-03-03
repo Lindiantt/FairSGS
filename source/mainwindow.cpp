@@ -2,8 +2,17 @@
 #include "ui_mainwindow.h"
 
 #include <qmessagebox.h>
-#include <qhostaddress.h>
-#include <QNetworkInterface>
+#include <QComboBox>
+
+#include "card/ccard.h"
+#include "network/cserver.h"
+#include "ui/mainwindowserverlist.h"
+#include "ui/dialogpersonalsettings.h"
+#include "general/cgeneral.h"
+#include "thread/workerloadsource.h"
+#include "network/cclient.h"
+#include "network/define.h"
+#include "thread/cimage.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -12,11 +21,22 @@ MainWindow::MainWindow(QWidget *parent) :
     QString s=QCoreApplication::applicationDirPath();
     settings=new QSettings(s+"/fairsgs.ini",QSettings::IniFormat);
     dialogPersonalSettings=NULL;
+    dialogConnect=nullptr;
     mwServerList=NULL;
+    mwCLient=nullptr;
+    mwServer=nullptr;
     network=new QNetworkAccessManager();
+    QThread *thread=new QThread();
+    wLoadSource=new workerLoadSource();
+    wLoadSource->moveToThread(thread);
+    thread->start();
+    emit wLoadSource->wakeUp();
+    connect(this,this->runFunction,this,this->handleRun);
+    qRegisterMetaType<std::function<void()>>("std::function<void()>");
 
     ui->setupUi(this);
 
+    this->setWindowTitle("Fair三国杀 " VERSION_STRING);
     //以下是界面的初始化，载入已保存的设置
     //连接服务器页
     QStringList sl;
@@ -25,21 +45,12 @@ MainWindow::MainWindow(QWidget *parent) :
     if(!sl.empty())
         ui->comboBoxServerAddress->addItems(sl);
     s=settings->value("serveraddress","127.0.0.1:5678").toString();
+    ui->widgetUser->setVisible(false);
+    ui->widgetPassword->setVisible(false);
+    ui->checkBoxRemember->setVisible(false);
     ui->comboBoxServerAddress->setCurrentText(s);
     int i;
-    i=settings->value("authmode",0).toInt();
     bool b;
-    switch (i) {
-    case 0:
-        on_radioButtonNone_toggled(true);
-        break;
-    case 1:
-        ui->radioButtonPassword->setChecked(true);
-        break;
-    default:
-        ui->radioButtonUserAndPassword->setChecked(true);
-        break;
-    }
     settings->endGroup();
     //基础设定页
     settings->beginGroup("server");
@@ -144,6 +155,8 @@ MainWindow::MainWindow(QWidget *parent) :
     b=settings->value("joingame",true).toBool();
     ui->checkBoxJoinGame->setChecked(b);
     settings->endGroup();
+
+    CCard::init(cardType,cardBiao,cardEx,cardJunzheng,cardJiexiantupo);
 }
 
 MainWindow::~MainWindow()
@@ -153,7 +166,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::getSavedUserAndPassword()
 {
-    QString s,s2;
+    QString s,s2,prefix;
     bool b;
     s=ui->comboBoxServerAddress->currentText();
     if(s!="")
@@ -162,40 +175,66 @@ void MainWindow::getSavedUserAndPassword()
         b=splitAddress(s,s2,port);
         if(!b)
         {
-            return;
+            ui->radioButtonNone->setChecked(true);
+            goto aa;
         }
         if(addressIsIP(s2))
         {
-            b=settings->value("connect/remember",false).toBool();
+            int m=settings->value("connect/?mode",-1).toInt();
+            if(m==0)
+            {
+                goto aa;
+            }
+            else if(m==1)
+                ui->radioButtonPassword->setChecked(true);
+            else if(m==2)
+                ui->radioButtonUserAndPassword->setChecked(true);
+            b=settings->value("connect/?remember",false).toBool();
             if(b)
             {
-                s2=settings->value("connect/user","").toString();
+                s2=settings->value("connect/?user","").toString();
                 ui->lineEditUser->setText(s2);
-                savedPassword=settings->value("connect/password").toByteArray();
+                savedPassword=settings->value("connect/?password").toByteArray();
                 if(savedPassword.length()==20)
                 {
                     ui->lineEditPassword->setText("这段文字只是用来占位的");
                 }
+                else
+                    savedPassword.clear();
             }
         }
         else
         {
-            s2="serverlist/";
-            s2+=s;
-            b=settings->value(s2+"?remember",false).toBool();
+            prefix="serverlist/"+s;
+            int m=settings->value(prefix+"?mode",-1).toInt();
+            if(m==0)
+            {
+                goto aa;
+            }
+            else if(m==1)
+                ui->radioButtonPassword->setChecked(true);
+            else if(m==2)
+                ui->radioButtonUserAndPassword->setChecked(true);
+            b=settings->value(prefix+"?remember",false).toBool();
             if(b)
             {
-                s=settings->value(s2+"?user","").toString();
+                s=settings->value(prefix+"?user","").toString();
                 ui->lineEditUser->setText(s);
-                savedPassword=settings->value(s2+"?password","").toByteArray();
+                savedPassword=settings->value(prefix+"?password","").toByteArray();
                 if(savedPassword.length()==20)
                 {
                     ui->lineEditPassword->setText("这段文字只是用来占位的");
                 }
+                else
+                    savedPassword.clear();
             }
         }
         ui->checkBoxRemember->setChecked(b);
+        return;
     }
+aa:
+    ui->radioButtonNone->setChecked(true);
+    savedPassword.clear();
 }
 
 bool MainWindow::splitAddress(const QString &address, QString &hostname, quint16 &port)
@@ -212,10 +251,10 @@ bool MainWindow::splitAddress(const QString &address, QString &hostname, quint16
     {
         s=address.mid(i+1);
         bool b;
-        int i=s.toInt(&b);
-        if(b&&i<=65535&&i>=0)
+        int p=s.toInt(&b);
+        if(b&&p<=65535&&p>=0)
         {
-            port=i;
+            port=p;
             hostname=address.left(i);
             return true;
         }
@@ -234,24 +273,7 @@ bool MainWindow::addressIsIP(const QString &ip)
 
 void MainWindow::saveClientConfig()
 {
-    QStringList sl;
-    int i,j;
-    settings->beginGroup("connect");
-    j=ui->comboBoxServerAddress->count();
-    for(i=0;i<j;i++)
-    {
-        sl.append(ui->comboBoxServerAddress->itemText(i));
-    }
-    settings->setValue("serverlist",sl);
-    settings->setValue("serveraddress",ui->comboBoxServerAddress->currentText());
-    if(ui->radioButtonNone->isChecked())
-        i=0;
-    else if(ui->radioButtonPassword->isChecked())
-        i=1;
-    else
-        i=2;
-    settings->setValue("authmode",i);
-    settings->endGroup();
+    settings->setValue("connect/serveraddress",ui->comboBoxServerAddress->currentText());
 }
 
 void MainWindow::saveServerConfig()
@@ -340,6 +362,7 @@ void MainWindow::setupDB()
     }
 }
 
+
 void MainWindow::on_actionExit_triggered()
 {
     this->close();
@@ -364,7 +387,6 @@ void MainWindow::on_radioButtonUserAndPassword_toggled(bool checked)
         ui->widgetUser->setVisible(true);
         ui->widgetPassword->setVisible(true);
         ui->checkBoxRemember->setVisible(true);
-        getSavedUserAndPassword();
     }
 }
 
@@ -452,6 +474,126 @@ void MainWindow::on_pushButtonFindServer_clicked()
 
 void MainWindow::on_pushButtonStartServer_clicked()
 {
+    saveServerConfig();
     server=new CServer();
-    //显示窗口...
+}
+
+void MainWindow::closeEvent(QCloseEvent *)
+{
+    saveClientConfig();
+    saveServerConfig();
+}
+
+void MainWindow::on_pushButtonConnect_clicked()
+{
+    QString s,ip;
+    quint16 port;
+    s=ui->comboBoxServerAddress->currentText();
+    if(!splitAddress(s,ip,port))
+    {
+        QMessageBox::about(this,"错误","服务器地址不正确");
+        ui->comboBoxServerAddress->setFocus();
+        return;
+    }
+    quint8 authmode;
+    QString user,prefix;
+    QByteArray password;
+    if(addressIsIP(ip))
+        prefix="connect/";
+    else
+        prefix="serverlist/"+s;
+    if(ui->radioButtonPassword->isChecked())
+    {
+        authmode=1;
+        if(!savedPassword.isEmpty())
+            password=savedPassword;
+        else
+        {
+            s=ui->lineEditPassword->text();
+            if(s.isEmpty())
+            {
+                QMessageBox::about(this,"错误","密码不能为空");
+                ui->lineEditPassword->setFocus();
+                return;
+            }
+            password=QCryptographicHash::hash(s.toUtf8(),QCryptographicHash::Sha1);
+        }
+    }
+    else if(ui->radioButtonUserAndPassword->isChecked())
+    {
+        authmode=2;
+        user=ui->lineEditUser->text();
+        if(savedPassword.isEmpty())
+            password=ui->lineEditPassword->text().toUtf8();
+        else
+            password=savedPassword;
+        if(user.isEmpty()||password.isEmpty())
+        {
+            QMessageBox::about(this,"错误","用户名和密码不能为空");
+            return;
+        }
+        if(user.contains(" ")||user.contains("　"))
+        {
+            QMessageBox::about(this,"错误","用户名不能包含空格");
+            return;
+        }
+        if(!savedPassword.isEmpty())
+            password=QCryptographicHash::hash(user.toUtf8()+password+"FairSGS",QCryptographicHash::Sha1);
+        bool b;
+        if(ui->checkBoxRemember->isChecked())
+        {
+            b=true;
+            settings->setValue(s+"?user",user);
+            settings->setValue(s+"?password",password);
+        }
+        else
+            b=false;
+        settings->setValue(prefix+"?remember",b);
+    }
+    else
+    {
+        authmode=0;
+    }
+    settings->setValue(prefix+"?mode",authmode);
+
+    QStringList sl;
+    int i,j;
+    j=ui->comboBoxServerAddress->count();
+    for(i=0;i<j;i++)
+    {
+        s=ui->comboBoxServerAddress->itemText(i);
+        if(s==ui->comboBoxServerAddress->currentText())
+            goto aa;
+        sl.append(s);
+    }
+    sl.append(ui->comboBoxServerAddress->currentText());
+    settings->setValue("connect/serverlist",sl);
+aa:
+    client=new CClient(ip,port,authmode,password,user);
+}
+
+void MainWindow::handleRun(std::function<void()> func)
+{
+    func();
+}
+
+void MainWindow::on_comboBoxServerAddress_currentTextChanged(const QString &arg1)
+{
+    getSavedUserAndPassword();
+}
+
+void MainWindow::on_lineEditPassword_textChanged(const QString &)
+{
+    this->savedPassword.clear();
+}
+
+void MainWindow::imageLoad(CImage *img, QLabel *lab)
+{
+    if(img->loaded)
+    {
+        if(lab)
+            lab->setPixmap(img->pixmap);
+    }
+    else
+        emit wLoadSource->newWork(WORKTYPE_IMAGE,img,lab);
 }

@@ -1,5 +1,4 @@
 ﻿#include "qtupnpportmapping.h"
-#include <QXmlStreamReader>
 
 QtUpnpPortMappingSocket::QtUpnpPortMappingSocket(QHostAddress address, quint16 port, QString host, QString infoURL, QtUpnpPortMapping *parent) : QObject(parent)
 {

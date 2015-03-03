@@ -1,4 +1,5 @@
-#include "cgeneral.h"
+﻿#include "cgeneral.h"
+#include "cskill.h"
 
 CGeneral::CGeneral()
 {

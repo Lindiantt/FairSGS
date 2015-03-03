@@ -2,7 +2,10 @@
 
 CSkill::CSkill()
 {
-
+    priority=0;
+    defaultOn=false;
+    lock=false;
+    active=false;
 }
 
 CSkill::~CSkill()
@@ -10,38 +13,22 @@ CSkill::~CSkill()
 
 }
 
-bool CSkill::activeSkill(QVector<CGeneral*> &generals,QVector<CCard*> &cards)
-{
-    return true;
-}
-
-SSkillTip CSkill::activeTip(QVector<CGeneral*> &generals,QVector<CCard*> &cards)
-{
-    SSkillTip st;
-    return st;
-}
-
-bool CSkill::cardTargetJudge(CGeneral* target,CGeneral* source,QVector<CGeneral*> &otherTargets,int cardType)
-{
-    return true;
-}
-
-void CSkill::getEvent(CGeneral* general)
+void CSkill::activeSkill(CPlayer* palyer)
 {
 
 }
 
-void CSkill::loseEvent(CGeneral* general)
+void CSkill::getEvent(CPlayer *player)
 {
 
 }
 
-void CSkill::phaseCallback(CGeneral* skillOwner,CGeneral* general,int phase,int extre,int extre2)
+void CSkill::loseEvent(CPlayer *player)
 {
 
 }
 
-int CSkill::msg(int type,void* par1,void* par2)
+void CSkill::phaseCallback(CPlayer* skillOwner, int phase, CPlayer* who, void* extre, void* extre2, void *extre3, void *extre4)
 {
-    return 0;
+
 }

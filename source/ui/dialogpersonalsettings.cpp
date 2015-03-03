@@ -44,9 +44,14 @@ void DialogPersonalSettings::on_pushButtonOK_clicked()
         QMessageBox::about(this,"错误","昵称不能包含空格");
         return;
     }
-    if(!s.length())
+    if(s.isEmpty())
     {
         QMessageBox::about(this,"错误","昵称不能为空");
+        return;
+    }
+    if(s.toUtf8().length()>30)
+    {
+        QMessageBox::about(this,"错误","昵称不能超过30字节");
         return;
     }
     w->settings->beginGroup("personal");

@@ -24,6 +24,7 @@ QtUpnpPortMapping::~QtUpnpPortMapping()
 {
     qDeleteAll(pendingRootDevices);
     qDeleteAll(successedRootDevices);
+    if(udpSocket) udpSocket->deleteLater();
 }
 
 void QtUpnpPortMapping::handleTimeout()

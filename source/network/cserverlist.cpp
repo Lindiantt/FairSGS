@@ -1,13 +1,11 @@
 ﻿#include "cserverlist.h"
-#include <qnetworkrequest.h>
-#include <qurl.h>
-#include <QtEndian>
-#include "network/define.h"
+#include "define.h"
 
 #include "ui_mainwindowserverlist.h"
-
 #include "mainwindow.h"
 extern MainWindow *w;
+
+#include "ui/mainwindowserverlist.h"
 
 CServerList::CServerList()
 {
@@ -158,7 +156,7 @@ void CServerList::addAddress(int j, quint32 add, quint16 port)
 
 void CServerList::refresh()
 {
-    if(lastTime.secsTo(QDateTime::currentDateTime())<1)
+    if(lastTime.secsTo(QDateTime::currentDateTime())<60)
     {
         w->mwServerList->statusBar()->showMessage("离上次获取列表的时间不足一分钟，请稍后再刷新。");
     }

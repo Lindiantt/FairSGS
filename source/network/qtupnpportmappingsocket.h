@@ -1,10 +1,7 @@
 ﻿#ifndef QTUPNPPORTMAPPINGSOCKET_H
 #define QTUPNPPORTMAPPINGSOCKET_H
 
-
-#include <QTcpSocket>
-#include <qtimer.h>
-#include <qhostaddress.h>
+#include "pch.h"
 
 class QtUpnpPortMapping;
 struct SAddPortMapping;

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>MainWindow</string>
+   <string>Fair三国杀服务器</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
@@ -28,7 +28,7 @@
      <number>1</number>
     </property>
     <item>
-     <widget class="QTextEdit" name="textEditServer">
+     <widget class="QPlainTextEdit" name="plainTextEditServer">
       <property name="verticalScrollBarPolicy">
        <enum>Qt::ScrollBarAlwaysOn</enum>
       </property>

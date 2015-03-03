@@ -4,6 +4,7 @@ MainWindow *w;
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
+    //a.setQuitOnLastWindowClosed(false);
     w=new MainWindow;
     w->show();
 

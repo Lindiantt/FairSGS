@@ -4,13 +4,26 @@
 #include "ui_mainwindow.h"
 extern MainWindow *w;
 
-#include "network/define.h"
+#ifdef QT_DEBUG
 #include <qmessagebox.h>
+#endif
 
+#include "cplayersocket.h"
+#include "card/ccard.h"
+#include "general/cgeneral.h"
+#include "qtupnpportmapping.h"
+#include "croom.h"
+#include "ui/mainwindowserver.h"
+#include "ui_mainwindowserver.h"
+#include "cclient.h"
 
 CServer::CServer()
 {
     numberOfSockets=0;
+    logCount=0;
+    lastRoomID=0;
+    server=nullptr;
+    reply=nullptr;
     //初始化服务器设置
     serverName=w->ui->lineEditServerName->text();
     numberOfPlayer=w->ui->spinBoxPlayers->value();
@@ -37,7 +50,8 @@ CServer::CServer()
     bool modeBan,modeDefault;
     modeBan=true;
     modeDefault=true;
-    for(int i=0;i<8;i++)
+    int i;
+    for(i=0;i<8;i++)
     {
         generalShen[i]=w->comboBoxShen[i]->currentIndex();
         if(modeBan&&generalShen[i])
@@ -106,11 +120,106 @@ CServer::CServer()
     authmodeError.resize(2);
     authmodeError[0]=CONNECT_ERROR_AUTHMODE;
     authmodeError[1]=auth>=2?2:auth;
+    //准备importantInfo
+    importantInfo.resize(11);
+    uint mr=qToLittleEndian(maxRoom);
+    memcpy(importantInfo.data(),&mr,4);
+    importantInfo[4]=numberOfPlayer;
+    importantInfo[5]=shuangNei?1:0;
+    importantInfo[6]=operationTimeout;
+    importantInfo[7]=wuXieTimeout;
+    importantInfo[8]=extreTime;
+    importantInfo[9]=choiceTimeout;
+    importantInfo[10]=allowChat?1:0;
+    //卡牌初始化
+    availableCards=w->cardBiao;
+    if(cardEX) availableCards.append(w->cardEx);
+    if(cardJunZheng) availableCards.append(w->cardJunzheng);
+    if(cardJieXianTuPo)
+    {
+        availableCards[84]=w->cardJiexiantupo[0];//木牛流马替代方片5闪
+    }
+    //武将初始化
+    quint8 j;
+    /*for(i=0;i<MAX_GENERAL;i++)
+    {
+        j=w->allGenerals[i]->package;
+        if(generalPackage[j]&&!generalBan[j])
+        {
+            if(w->allGenerals[i]->zhuGong)
+                availableZhugong.append(w->allGenerals[i]);
+            else
+                availableGenerals.append(w->allGenerals[i]);
+        }
+    }
+    if(availableZhugong.length()+availableGenerals.length()<numberOfPlayer)
+    {
+        QMessageBox::about(nullptr,"错误","可用武将数过少。");
+        this->deleteLater();
+        return;
+    }*/
+    //身份初始化
+    int n;
+    if(numberOfPlayer>2)
+    {
+        if(shuangNei)
+        {
+            roles<<ROLE_NEI<<ROLE_NEI;
+            numberOfNei=2;
+        }
+        else
+        {
+            roles<<ROLE_NEI;
+            numberOfNei=1;
+        }
+        n=numberOfPlayer-roles.length()-1;
+        if(n>0)
+        {
+            if(n%2)
+            {
+                n=(n-1)/2+1;
+            }
+            else
+            {
+                n=(n-2)/2+2;
+            }
+        }
+    }
+    else
+    {
+        n=1;
+        numberOfNei=0;
+    }
+    for(i=0;i<n;i++)
+    {
+        roles.append(ROLE_FAN);
+    }
+    n=numberOfPlayer-roles.length()-1;
+    for(i=0;i<n;i++)
+    {
+        roles.append(ROLE_ZHONG);
+    }
     //启动服务器
     port=w->ui->spinBoxPort->value();
     server=new QTcpServer();
     connect(server,server->newConnection,this,this->handleNewConnection);
-    server->listen(QHostAddress::Any,port);
+    if(!server->listen(QHostAddress::Any,port))
+    {
+        QMessageBox::about(nullptr,"错误","TCP端口绑定失败！");
+        this->deleteLater();
+        return;
+    }
+    if(!udp.bind(port))
+    {
+        int r=QMessageBox::question(nullptr,"错误","UDP端口绑定失败，用户将无法进行聊天和观战。\n确定要继续吗？");
+        if(r!=QMessageBox::Yes)
+        {
+            this->deleteLater();
+            return;
+        }
+    }
+    else
+        connect(&udp,udp.readyRead,this,this->handleUdpRead);
     if(w->ui->checkBoxUPNP->isChecked())
     {
         upnp=new QtUpnpPortMapping;
@@ -123,14 +232,28 @@ CServer::CServer()
         upnp=NULL;
         firstReg();
     }
+    //显示窗口
+    if(!w->mwServer)
+    {
+        w->mwServer=new MainWindowServer();
+    }
+    if(w->ui->checkBoxJoinGame->isChecked())
+    {
+        QByteArray ba(password,20);
+        w->client=new CClient("127.0.0.1",port,auth>=2?2:auth,ba,"admin");
+    }
+    else
+    {
+        w->hide();
+        w->mwServer->showMaximized();
+    }
+    qsrand(QTime::currentTime().msecsSinceStartOfDay());
 }
 
 CServer::~CServer()
 {
-    if(upnp)
-    {
-        upnp->deleteLater();
-    }
+    if(server) server->deleteLater();
+    if(reply) reply->deleteLater();
 }
 
 void CServer::regServer()
@@ -143,6 +266,7 @@ void CServer::handleReplyFinished()
 {
     char buf;
     regSuccessed=false;
+    static bool firstTip=true;
     if(reply->bytesAvailable()==1)
     {
         reply->read(&buf,1);
@@ -152,6 +276,11 @@ void CServer::handleReplyFinished()
         }
         else if(buf=='0')
         {
+            if(firstTip)
+            {
+                firstTip=false;
+                QMessageBox::about(NULL,"提示","加入“查找服务器”列表成功！");
+            }
             regSuccessed=true;
             QTimer::singleShot(3600000,Qt::VeryCoarseTimer,this,this->regServer);
         }
@@ -161,6 +290,7 @@ void CServer::handleReplyFinished()
     else
         QMessageBox::about(NULL,"加入“查找服务器”列表失败","失败原因：列表服务器异常。");
     reply->deleteLater();
+    reply=nullptr;
 }
 
 void CServer::firstReg()
@@ -187,13 +317,68 @@ void CServer::handleUpnpFinished()
 
 void CServer::handleNewConnection()
 {
-    numberOfSockets++;
     QTcpSocket *socket=server->nextPendingConnection();
-    CPlayerSocket *handle=new CPlayerSocket(socket,this);
-    sockets.append(handle);
+    new CPlayerSocket(socket,this);
+    log("新连接："+socket->peerAddress().toString());
 }
 
 void CServer::removeSocket(CPlayerSocket *socket)
 {
     sockets.removeOne(socket);
+}
+
+void CServer::log(const QString &content)
+{
+    logCount++;
+    if(logCount>=100000)
+    {
+        logCount=0;
+        w->mwServer->ui->plainTextEditServer->clear();
+    }
+    w->mwServer->ui->plainTextEditServer->appendPlainText(content);
+}
+
+CRoom* CServer::createRoom()
+{
+    if(rooms.size()>=this->maxRoom) return nullptr;
+    CRoom *room=new CRoom(this);
+    room->id=lastRoomID;
+    rooms.insert(lastRoomID,room);
+    lastRoomID++;
+    return room;
+}
+
+uint CServer::lastRoomPage()
+{
+    int l=rooms.size();
+    if(!l) return 0;
+    l=(l-1)/20;
+    return l+1;
+}
+
+void CServer::handleUdpRead()
+{
+    QByteArray ba;
+    QHostAddress ha;
+    quint16 port;
+    int i;
+    while(udp.hasPendingDatagrams())
+    {
+        ba.resize(udp.pendingDatagramSize());
+        udp.readDatagram(ba.data(),ba.length(),&ha,&port);
+        if(ba.length()!=4) continue;
+        memcmp(&i,ba.data(),4);
+        auto it=udpVals.find(i);
+        while(it!=udpVals.end()&&it.key()==i)
+        {
+            CPlayerSocket *player=it.value();
+            if(player->hostAddress==ha)
+            {
+                player->setUdpPort(port);
+                udpVals.erase(it);
+                break;
+            }
+            it++;
+        }
+    }
 }

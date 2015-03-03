@@ -1,8 +1,9 @@
 ﻿#ifndef CGENERAL_H
 #define CGENERAL_H
 
-#include <qstring.h>
-#include "general/cskill.h"
+#include "pch.h"
+
+class CSkill;
 
 #define PACKAGE_BIAO 0
 #define PACKAGE_FENG 1
@@ -21,20 +22,24 @@
 #define KINGDOM_SHU 1
 #define KINGDOM_WU 2
 #define KINGDOM_QUN 3
+#define KINGDOM_SHEN 4
 
 class CGeneral
 {
 public:
     CGeneral();
     ~CGeneral();
+    quint16 id;
     QString name;
     QString nick;
-    bool gender;
+    bool gender,zhuGong;
     quint8 kingdom;
-    quint8 maxHP,HP;
+    quint8 maxHP;
     quint8 package;
-    QVector<CSkill*> skill;
-    QVector<CGeneral*> derived;
+    QList<CSkill*> skill;
+    QList<CGeneral*> derived;//可派生的武将
+    bool isDerived;//是否派生将
+    //派生将：SP孙尚香是孙尚香的派生将，诸如此类
 };
 
 

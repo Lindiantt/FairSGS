@@ -3,8 +3,9 @@
 #include "mainwindow.h"
 extern MainWindow *w;
 #include "ui_mainwindowserverlist.h"
-#include "network/define.h"
-#include <QtEndian>
+
+#include "define.h"
+#include "ui/mainwindowserverlist.h"
 
 CSLSocketHandle::CSLSocketHandle(QHostAddress &address,quint16 port,QTableWidgetItem* item)
 {

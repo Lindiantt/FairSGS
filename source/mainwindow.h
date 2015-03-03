@@ -1,14 +1,22 @@
 ﻿#ifndef MAINWINDOW_H
 #define MAINWINDOW_H
 
+#include "pch.h"
 #include <QMainWindow>
-#include <qsettings.h>
-#include <qcombobox.h>
-#include <qpair.h>
-#include "ui/dialogpersonalsettings.h"
-#include "ui/mainwindowserverlist.h"
-#include "network/cserver.h"
-#include <QtSql>
+class CCard;
+class CServer;
+class CClient;
+class MainWindowServerList;
+class DialogPersonalSettings;
+class CCardType;
+class CGeneral;
+class MainWindowServer;
+class DialogConnect;
+class workerLoadSource;
+class QComboBox;
+class MainWindowClient;
+class CImage;
+class QLabel;
 
 namespace Ui {
 class MainWindow;
@@ -24,15 +32,29 @@ public:
     bool splitAddress(const QString &, QString &hostname, quint16 &port);
     QByteArray generateUID();
     void setupDB();
+    void imageLoad(CImage *,QLabel *);
 
     Ui::MainWindow *ui;
     QComboBox* comboBoxShen[8];
-    QSettings *settings;
+    QSettings *settings,*scoreRecord;
     DialogPersonalSettings *dialogPersonalSettings;
+    DialogConnect *dialogConnect;
     MainWindowServerList *mwServerList;
+    MainWindowServer *mwServer;
     QNetworkAccessManager *network;
     CServer *server;
     QSqlDatabase db;
+    workerLoadSource *wLoadSource;
+    CClient *client;
+    MainWindowClient *mwCLient;
+
+    CCardType **cardType;
+    QList<CCard*> cardBiao,cardEx,cardJunzheng,cardJiexiantupo;
+    CGeneral **allGenerals;
+public slots:
+    void handleRun(std::function<void()>func);
+signals:
+    void runFunction(std::function<void()>func);
 
 private slots:
     void on_actionExit_triggered();
@@ -61,6 +83,12 @@ private slots:
 
     void on_pushButtonStartServer_clicked();
 
+    void on_pushButtonConnect_clicked();
+
+    void on_comboBoxServerAddress_currentTextChanged(const QString &arg1);
+
+    void on_lineEditPassword_textChanged(const QString &arg1);
+
 private:
     QByteArray savedPassword;
 
@@ -69,6 +97,7 @@ private:
     void getSavedUserAndPassword();
     void saveServerConfig();
     void saveClientConfig();
+    void closeEvent(QCloseEvent *);
 };
 
 #endif // MAINWINDOW_H

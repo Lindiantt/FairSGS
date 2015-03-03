@@ -1,11 +1,8 @@
 ﻿#ifndef CSLSOCKETHANDLE_H
 #define CSLSOCKETHANDLE_H
 
-#include <QTcpSocket>
 #include <QTableWidgetItem>
-#include <qtimer.h>
-#include <qdatetime.h>
-#include <qhostaddress.h>
+#include "pch.h"
 
 class CSLSocketHandle:public QObject
 {
