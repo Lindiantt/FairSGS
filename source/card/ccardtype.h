@@ -72,6 +72,7 @@
 #include "pch.h"
 
 class CPlayer;
+class CCard;
 
 class CCardType
 {
@@ -79,17 +80,26 @@ public:
     CCardType();
     ~CCardType();
     static void createType(CCardType** &);
-    virtual void useCard(CPlayer*);
-    virtual bool canUse(CPlayer*);
+    virtual void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
+    virtual bool canUse(CPlayer*,CCard*);
+    virtual bool canPlay(CPlayer*,CCard*);
+    virtual QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    virtual bool cardUseCheck(CPlayer*,CCard*,QList<CPlayer*> &);
     quint16 type1;
     quint8 type2;
     QString name;
+    int minTargets,maxTargets;
+    bool canSelectTarget;
 };
 
 class CCardSha: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    CCardSha();
+    bool canUse(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    int attribute;
 };
 
 class CCardLeiSha:public CCardSha
@@ -104,98 +114,112 @@ class CCardHuoSha:public CCardSha
 
 class CCardJiu: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardTao: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardGuoHeCaiQiao: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardGuoHeCaiQiao();
 };
 
 class CCardShunShouQianYang: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardShunShouQianYang();
 };
 
 class CCardWuZhongShengYou: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    //CCardWuZhongShengYou();
 };
 
 class CCardJieDaoShaRen: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    bool cardUseCheck(CPlayer*,CCard*,QList<CPlayer*> &);
+    CCardJieDaoShaRen();
 };
 
 class CCardWuGuFengDeng: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    CCardWuGuFengDeng();
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardTaoYuanJieYi: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    CCardTaoYuanJieYi();
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardHuoGong: public CCardType
 {
-  //  void useCard(CPlayer*);
-//    bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardHuoGong();
 };
 
 class CCardNanManRuQin: public CCardType
 {
-    //void useCard(CPlayer*);
-//    bool canUse(CPlayer*);
+public:
+    CCardNanManRuQin();
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardWanJianQiFa: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    CCardWanJianQiFa();
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardJueDou: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardJueDou();
 };
 
 class CCardTieSuoLianHuan: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardTieSuoLianHuan();
 };
 
 class CCardShanDian: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
 };
 
 class CCardLeBuSiShu: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardLeBuSiShu();
 };
 
 class CCardBingLiangCunDuan: public CCardType
 {
-    //void useCard(CPlayer*);
-    //bool canUse(CPlayer*);
+public:
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    CCardBingLiangCunDuan();
 };
 
 class CCardZhuangbei: public CCardType
@@ -206,6 +230,7 @@ public:
     virtual void takeOffEvent(CPlayer *);
     virtual void moveEvent(CPlayer *,CPlayer *);
     virtual void callback(CPlayer *,int phase);
+    QList<CPlayer*> availableTargets(CPlayer*,CCard*);
     //void useCard(CPlayer*);
     //bool canUse(CPlayer*);
 };
@@ -213,7 +238,9 @@ public:
 class CCardWuqi: public CCardZhuangbei
 {
 public:
+    QString distanceChinese();
     quint8 distance;
+    quint8 iconType;
     //void useCard(CPlayer*);
 };
 

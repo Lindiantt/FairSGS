@@ -17,6 +17,9 @@ public:
     void send(QByteArray &);
     void setUdpPort(quint16 port);
     QByteArray info();
+    void chooseRoom();
+    void joinRoom(CRoom*);
+    void onlookRoom(CRoom*);
     QTcpSocket* socket;
     int state;
     QTimer timer;
@@ -31,19 +34,16 @@ public:
     int udpCode;
     bool admin,roomHost,ready;
     quint8 roomPosition;
+    bool directDelete;
 signals:
 
 public slots:
 private:
     CServer* server;
-
     bool rhInit();
     bool rhVerified();
     bool rhConnected();
-    bool rhChooseRoom();
-    void joinRoom(CRoom*);
-    void onlookRoom(CRoom*);
-    void chooseRoom();
+    bool rhChooseRoom(QByteArray &);
     QByteArray roomPage(uint page);
 private slots:
     void handleRead();

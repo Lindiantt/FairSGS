@@ -4,22 +4,33 @@
 #include "pch.h"
 
 class CGame;
+class CCard;
+class CTempCard;
 
-/*#define EVENTTYPE_USECARD 0
-#define EVENTTYPE_NEEDCARD 1
-#define EVENTTYPE_INJURED 2
-*/
+#define EVENT_PHASE 0
+#define EVENT_ABOUTTOJUDGE 1
+#define EVENT_JUDGE 2
+#define EVENT_INJURY 3
 
 class CEvent : public QObject
 {
     Q_OBJECT
 public:
-    explicit CEvent(CGame* game);
+    explicit CEvent(CGame* game,int type=EVENT_PHASE);
     ~CEvent();
     CEvent* parent;
     CGame* game;
-    bool available;
+    int type;
+    QSet<quint8> cardsToDiscard;
+    QList<CTempCard*> tempCards;
     std::function<void()> funcDelete;
+    QLinkedList<std::function<void()>> funcs;
+    void addFunc(std::function<void()>);
+    void insertFunc(std::function<void()>);
+    void addCard(CCard*);
+    CEvent* findParent(int type);
+    void takeCard(quint8);
+    void takeCards(QList<quint8>);
 
 signals:
 

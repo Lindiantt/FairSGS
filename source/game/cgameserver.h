@@ -4,6 +4,7 @@
 class CServer;
 class CRoom;
 class CPlayerServer;
+class CGeneral;
 
 #include "game/cgame.h"
 
@@ -13,16 +14,25 @@ class CGameServer : public CGame
 public:
     CGameServer(CServer*,CRoom*);
     ~CGameServer();
+    void init();
     void cardDeliver();
     void s1needRole();
     void s2needChooseGeneral();
     void s3needAllGeneralAndCards();
-    QList<CCard*> drawCard(int);
+    void s4skillSetup();
+    void drawCard(int);
+    void needCard(int,QSet<quint8>);
+    void needWuXieKeJi();
+    void startNextRound();
     CServer* server;
     CRoom* room;
-    QVector<CPlayerServer*> players;
+    QHash<int,QList<CGeneral*>> availableGenerals;
+    COperation* newOperation(quint8 type);
+    COperation* currentOperation;
 public slots:
     void handleGeneralChosen();
+private:
+    int chosen;
 };
 
 #endif // CGAMESERVER_H

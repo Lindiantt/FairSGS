@@ -4,18 +4,17 @@
 #include "ui_mainwindow.h"
 extern MainWindow *w;
 
-#ifdef QT_DEBUG
 #include <qmessagebox.h>
-#endif
 
 #include "cplayersocket.h"
 #include "card/ccard.h"
 #include "general/cgeneral.h"
 #include "qtupnpportmapping.h"
 #include "croom.h"
-#include "ui/mainwindowserver.h"
+#include "ui/mainwindow/mainwindowserver.h"
 #include "ui_mainwindowserver.h"
 #include "cclient.h"
+#include "ui/dialog/dialogregister.h"
 
 CServer::CServer()
 {
@@ -95,6 +94,9 @@ CServer::CServer()
     wuXieTimeout=w->ui->spinBoxWuXieTimeout->value();
     extreTime=w->ui->spinBoxExtreTime->value();
     choiceTimeout=w->ui->spinBoxChoiceTimeout->value();
+#ifdef QT_DEBUG
+    //operationTimeout=wuXieTimeout=extreTime=choiceTimeout=1;
+#endif
     maxOnlooker=w->ui->spinBoxMaxOnlooker->value();
     //准备“服务器简略信息”内容，以备后用
     getInfoBuf=serverName.toUtf8();
@@ -135,31 +137,35 @@ CServer::CServer()
     availableCards=w->cardBiao;
     if(cardEX) availableCards.append(w->cardEx);
     if(cardJunZheng) availableCards.append(w->cardJunzheng);
-    if(cardJieXianTuPo)
-    {
-        availableCards[84]=w->cardJiexiantupo[0];//木牛流马替代方片5闪
-    }
+    if(cardJieXianTuPo) availableCards.append(w->cardJiexiantupo);
     //武将初始化
     quint8 j;
-    /*for(i=0;i<MAX_GENERAL;i++)
+    int n;
+    for(i=0;i<MAX_GENERAL;i++)
     {
+        generalBan[i]=w->checkBoxBans[i]->isChecked();
         j=w->allGenerals[i]->package;
-        if(generalPackage[j]&&!generalBan[j])
+        if(generalPackage[j]&&!generalBan[i])
         {
             if(w->allGenerals[i]->zhuGong)
                 availableZhugong.append(w->allGenerals[i]);
             else
-                availableGenerals.append(w->allGenerals[i]);
+            {
+                if(w->allGenerals[i]->derivedFrom==-1)
+                    n=w->allGenerals[i]->id;
+                else
+                    n=w->allGenerals[i]->derivedFrom;
+                availableGenerals[n].append(w->allGenerals[i]);
+            }
         }
     }
-    if(availableZhugong.length()+availableGenerals.length()<numberOfPlayer)
+    if(availableZhugong.length()+availableGenerals.size()<numberOfPlayer)
     {
         QMessageBox::about(nullptr,"错误","可用武将数过少。");
         this->deleteLater();
         return;
-    }*/
+    }
     //身份初始化
-    int n;
     if(numberOfPlayer>2)
     {
         if(shuangNei)
@@ -218,8 +224,7 @@ CServer::CServer()
             return;
         }
     }
-    else
-        connect(&udp,udp.readyRead,this,this->handleUdpRead);
+    connect(&udp,udp.readyRead,this,this->handleUdpRead);
     if(w->ui->checkBoxUPNP->isChecked())
     {
         upnp=new QtUpnpPortMapping;
@@ -240,7 +245,19 @@ CServer::CServer()
     if(w->ui->checkBoxJoinGame->isChecked())
     {
         QByteArray ba(password,20);
-        w->client=new CClient("127.0.0.1",port,auth>=2?2:auth,ba,"admin");
+        if(auth>=2)
+        {
+            if(!w->dialogRegister)
+            {
+                w->dialogRegister=new DialogRegister(w);
+            }
+            w->dialogRegister->init(0);
+            w->dialogRegister->ip="127.0.0.1";
+            w->dialogRegister->port=port;
+            w->dialogRegister->show();
+        }
+        else
+            w->client=new CClient("127.0.0.1",port,auth,ba,"");
     }
     else
     {
@@ -254,6 +271,12 @@ CServer::~CServer()
 {
     if(server) server->deleteLater();
     if(reply) reply->deleteLater();
+    w->server=nullptr;
+    CPlayerSocket *socket;
+    foreach (socket, sockets) {
+        socket->directDelete=true;
+        socket->deleteLater();
+    }
 }
 
 void CServer::regServer()
@@ -367,7 +390,7 @@ void CServer::handleUdpRead()
         ba.resize(udp.pendingDatagramSize());
         udp.readDatagram(ba.data(),ba.length(),&ha,&port);
         if(ba.length()!=4) continue;
-        memcmp(&i,ba.data(),4);
+        memcpy(&i,ba.data(),4);
         auto it=udpVals.find(i);
         while(it!=udpVals.end()&&it.key()==i)
         {
@@ -376,6 +399,7 @@ void CServer::handleUdpRead()
             {
                 player->setUdpPort(port);
                 udpVals.erase(it);
+                qDebug("udp ok");
                 break;
             }
             it++;

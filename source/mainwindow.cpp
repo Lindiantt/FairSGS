@@ -3,21 +3,27 @@
 
 #include <qmessagebox.h>
 #include <QComboBox>
+#include "qtoolbutton.h"
 
 #include "card/ccard.h"
 #include "network/cserver.h"
-#include "ui/mainwindowserverlist.h"
-#include "ui/dialogpersonalsettings.h"
+#include "ui/mainwindow/mainwindowserverlist.h"
+#include "ui/dialog/dialogpersonalsettings.h"
 #include "general/cgeneral.h"
 #include "thread/workerloadsource.h"
 #include "network/cclient.h"
 #include "network/define.h"
 #include "thread/cimage.h"
+#include "ui/dialog/dialogregister.h"
+#include "qfontdatabase.h"
+#include "thread/cicon.h"
+#include "thread/ccheckpointer.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    QFontDatabase::addApplicationFont("font/simli.ttf");
     QString s=QCoreApplication::applicationDirPath();
     settings=new QSettings(s+"/fairsgs.ini",QSettings::IniFormat);
     dialogPersonalSettings=NULL;
@@ -25,14 +31,27 @@ MainWindow::MainWindow(QWidget *parent) :
     mwServerList=NULL;
     mwCLient=nullptr;
     mwServer=nullptr;
+    dialogRegister=nullptr;
+    client=nullptr;
+    server=nullptr;
     network=new QNetworkAccessManager();
     QThread *thread=new QThread();
     wLoadSource=new workerLoadSource();
     wLoadSource->moveToThread(thread);
     thread->start();
     emit wLoadSource->wakeUp();
-    connect(this,this->runFunction,this,this->handleRun);
+    connect(this,this->runFunction,this,this->handleRun,Qt::QueuedConnection);
     qRegisterMetaType<std::function<void()>>("std::function<void()>");
+    allGenerals=CGeneral::createAll();
+    generalShen=CGeneral::createShen();
+    CCard::init(cardType,cardBiao,cardEx,cardJunzheng,cardJiexiantupo);
+    int favorite=settings->value("personal/favorite",-1).toInt();
+    if(favorite==-1)
+    {
+        qsrand(QTime::currentTime().msecsSinceStartOfDay());
+        favorite=qrand()%MAX_GENERAL;
+        settings->setValue("personal/favorite",favorite);
+    }
 
     ui->setupUi(this);
 
@@ -48,6 +67,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->widgetUser->setVisible(false);
     ui->widgetPassword->setVisible(false);
     ui->checkBoxRemember->setVisible(false);
+    ui->pushButtonRegister->setVisible(false);
     ui->comboBoxServerAddress->setCurrentText(s);
     int i;
     bool b;
@@ -118,6 +138,47 @@ MainWindow::MainWindow(QWidget *parent) :
         j=settings->value(s+QString::number(i),i<6?2:1).toInt();
         comboBoxShen[i]->setCurrentIndex(j);
     }
+    //禁将页
+    sl.clear();
+    sl<<"禁用"<<"名字"<<"称号"<<"势力"<<"血量"<<"扩展包";
+    ui->tableWidgetBan->setHorizontalHeaderLabels(sl);
+    ui->tableWidgetBan->setColumnWidth(0,32);
+    ui->tableWidgetBan->setColumnWidth(1,80);
+    ui->tableWidgetBan->setColumnWidth(2,100);
+    ui->tableWidgetBan->setColumnWidth(3,32);
+    ui->tableWidgetBan->setColumnWidth(4,32);
+    ui->tableWidgetBan->setColumnWidth(5,80);
+    ui->tableWidgetBan->setRowCount(MAX_GENERAL);
+    checkBoxBans=new QCheckBox*[MAX_GENERAL];
+    s="ban";
+    QTableWidgetItem *item;
+    for(int i=0;i<MAX_GENERAL;i++)
+    {
+        QWidget *widget=new QWidget();
+        QHBoxLayout *layout=new QHBoxLayout(widget);
+        checkBoxBans[i]=new QCheckBox();
+        b=settings->value(s+QString::number(i),false).toBool();
+        checkBoxBans[i]->setChecked(b);
+        layout->addWidget(checkBoxBans[i]);
+        layout->setAlignment(Qt::AlignCenter);
+        layout->setContentsMargins(0,0,0,0);
+        ui->tableWidgetBan->setCellWidget(i,0,widget);
+        item=new QTableWidgetItem(allGenerals[i]->name);
+        item->setTextAlignment(Qt::AlignCenter);
+        ui->tableWidgetBan->setItem(i,1,item);
+        item=new QTableWidgetItem(allGenerals[i]->nick);
+        item->setTextAlignment(Qt::AlignCenter);
+        ui->tableWidgetBan->setItem(i,2,item);
+        item=new QTableWidgetItem(CGeneral::kingdomName(allGenerals[i]->kingdom));
+        item->setTextAlignment(Qt::AlignCenter);
+        ui->tableWidgetBan->setItem(i,3,item);
+        item=new QTableWidgetItem(QString::number(allGenerals[i]->maxHP));
+        item->setTextAlignment(Qt::AlignCenter);
+        ui->tableWidgetBan->setItem(i,4,item);
+        item=new QTableWidgetItem(CGeneral::packageName(allGenerals[i]->package));
+        item->setTextAlignment(Qt::AlignCenter);
+        ui->tableWidgetBan->setItem(i,5,item);
+    }
     //密码页
     i=settings->value("authmode",0).toInt();
     switch(i)
@@ -133,7 +194,7 @@ MainWindow::MainWindow(QWidget *parent) :
         break;
     }
     s=settings->value("password","").toString();
-    ui->lineEditPassword->setText(s);
+    ui->lineEditServerPassword->setText(s);
     b=settings->value("allowregister",true).toBool();
     ui->checkBoxAllowRegister->setChecked(b);
     //杂项页
@@ -235,6 +296,7 @@ void MainWindow::getSavedUserAndPassword()
 aa:
     ui->radioButtonNone->setChecked(true);
     savedPassword.clear();
+    ui->lineEditPassword->clear();
 }
 
 bool MainWindow::splitAddress(const QString &address, QString &hostname, quint16 &port)
@@ -313,6 +375,11 @@ void MainWindow::saveServerConfig()
     {
         settings->setValue(s+QString::number(i),comboBoxShen[i]->currentIndex());
     }
+    //禁将页
+    for(int i=0;i<MAX_GENERAL;i++)
+    {
+        settings->setValue("ban"+QString::number(i),checkBoxBans[i]->isChecked());
+    }
     //密码页
     if(ui->radioButtonServerNone->isChecked())
         i=0;
@@ -340,7 +407,12 @@ void MainWindow::saveServerConfig()
 QByteArray MainWindow::generateUID()
 {
     auto it=QNetworkInterface::allInterfaces();
-    auto ba=it[0].hardwareAddress().toLocal8Bit();
+    QByteArray ba;
+    if(it.isEmpty())
+    {
+        return ba;
+    }
+    ba=it[0].hardwareAddress().toLocal8Bit();
     QCryptographicHash hash(QCryptographicHash::Sha1);
     hash.addData(ba);
     return hash.result();
@@ -361,7 +433,6 @@ void MainWindow::setupDB()
         query.exec("CREATE  TABLE  IF NOT EXISTS \"user\" (\"username\" VARCHAR PRIMARY KEY  NOT NULL  UNIQUE , \"password\" CHAR NOT NULL )");
     }
 }
-
 
 void MainWindow::on_actionExit_triggered()
 {
@@ -537,6 +608,11 @@ void MainWindow::on_pushButtonConnect_clicked()
             QMessageBox::about(this,"错误","用户名不能包含空格");
             return;
         }
+        if(user.toUtf8().length()>30)
+        {
+            QMessageBox::about(this,"错误","用户名的长度不能超过30字节。");
+            return;
+        }
         if(!savedPassword.isEmpty())
             password=QCryptographicHash::hash(user.toUtf8()+password+"FairSGS",QCryptographicHash::Sha1);
         bool b;
@@ -577,7 +653,7 @@ void MainWindow::handleRun(std::function<void()> func)
     func();
 }
 
-void MainWindow::on_comboBoxServerAddress_currentTextChanged(const QString &arg1)
+void MainWindow::on_comboBoxServerAddress_currentTextChanged(const QString &)
 {
     getSavedUserAndPassword();
 }
@@ -587,13 +663,89 @@ void MainWindow::on_lineEditPassword_textChanged(const QString &)
     this->savedPassword.clear();
 }
 
-void MainWindow::imageLoad(CImage *img, QLabel *lab)
+void MainWindow::imageLoad(CImage *img, void *p, void *par)
 {
-    if(img->loaded)
+    if(wLoadSource->ready&&img->loaded)
     {
-        if(lab)
-            lab->setPixmap(img->pixmap);
+        imageDirectLoad(img,p);
     }
     else
-        emit wLoadSource->newWork(WORKTYPE_IMAGE,img,lab);
+    {
+        CCheckPointer *cp=new CCheckPointer(p,par);
+        emit wLoadSource->newWork(WORKTYPE_IMAGE,img,cp);
+    }
+}
+
+void MainWindow::imageLoad(CImage *img, void *p)
+{
+    if(wLoadSource->ready&&img->loaded)
+    {
+        imageDirectLoad(img,p);
+    }
+    else
+    {
+        emit wLoadSource->newWork(WORKTYPE_IMAGE,img,p);
+    }
+}
+
+void MainWindow::imageDirectLoad(CImage *img, void *p)
+{
+    if(p)
+    {
+        QWidget *widget=(QWidget *)p;
+        if(QLabel *label=qobject_cast<QLabel*>(widget))
+            label->setPixmap(img->pixmap);
+        else if(QToolButton *button=qobject_cast<QToolButton*>(widget))
+            button->setIcon(QIcon(img->pixmap));
+    }
+}
+
+void MainWindow::on_pushButtonRegister_clicked()
+{
+    QString ip;
+    quint16 port;
+    QString s=ui->comboBoxServerAddress->currentText();
+    if(s.isEmpty())
+    {
+        QMessageBox::warning(this,"错误","请输入服务器地址。");
+        return;
+    }
+    if(!splitAddress(s,ip,port))
+    {
+        QMessageBox::warning(this,"错误","服务器地址格式不正确。");
+        return;
+    }
+    if(!dialogRegister)
+    {
+        dialogRegister=new DialogRegister(this);
+    }
+    dialogRegister->init(1);
+    dialogRegister->ip=ip;
+    dialogRegister->port=port;
+    dialogRegister->show();
+}
+
+void MainWindow::iconLoad(CIcon *icon, QPushButton *button, void *par)
+{
+    if(wLoadSource->ready&&icon->loaded)
+    {
+        if(button) button->setIcon(icon->icon);
+    }
+    else
+    {
+        CCheckPointer *cp=new CCheckPointer(button,par);
+        emit wLoadSource->newWork(WORKTYPE_ICON,icon,cp);
+    }
+}
+
+void MainWindow::iconLoad(CIcon *icon, QPushButton* button)
+{
+    if(wLoadSource->ready&&icon->loaded)
+    {
+        button->setIcon(icon->icon);
+    }
+    else
+    {
+        emit wLoadSource->newWork(WORKTYPE_ICON,icon,button);
+    }
 }

@@ -3,7 +3,7 @@
 
 #include "pch.h"
 
-class CGame;
+class CGameServer;
 class CPlayerSocket;
 class CServer;
 
@@ -16,11 +16,18 @@ public:
     int emptySeat();
     void join(CPlayerSocket*);
     void sendRoomInfo();
-    CGame* game;
-    QHash<int,CPlayerSocket*> players;
+    bool rhInRoomPlayer(QByteArray &,CPlayerSocket *);
+    void destroy();
+    void leave(CPlayerSocket *);
+    CGameServer* game;
+    QMap<int,CPlayerSocket*> players;
     QList<CPlayerSocket*> onlooker;
     CServer *server;
     uint id;
+private:
+    void setReady(bool,CPlayerSocket *);
+
+    void startGame();
 };
 
 #endif // CROOM_H

@@ -29,8 +29,14 @@ class CGeneral
 public:
     CGeneral();
     ~CGeneral();
+    static CGeneral** createAll();
+    static CGeneral** createShen();
+    static CGeneral* find(quint16);
+    static QString kingdomName(quint8);
+    static QString packageName(quint8);
+    static QString roleName(quint8);
     quint16 id;
-    QString name;
+    QString name,displayName;
     QString nick;
     bool gender,zhuGong;
     quint8 kingdom;
@@ -38,7 +44,7 @@ public:
     quint8 package;
     QList<CSkill*> skill;
     QList<CGeneral*> derived;//可派生的武将
-    bool isDerived;//是否派生将
+    int derivedFrom;//是哪个武将的派生将
     //派生将：SP孙尚香是孙尚香的派生将，诸如此类
 };
 

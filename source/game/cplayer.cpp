@@ -4,15 +4,27 @@
 #include "cevent.h"
 #include "cgame.h"
 #include "cinjured.h"
-
-#define CHECKEVENT(a) if(!(a).available){return;}
+#include "general/cgeneral.h"
 
 CPlayer::CPlayer()
 {
+    offline=false;
+    tuoGuan=false;
+    isAlive=true;
+    isTieSuoLianHuan=false;
+    isFanMian=false;
     for(int i=0;i<5;i++)
     {
         zhuangBei[i]=nullptr;
     }
+    general=nullptr;
+    shaDistance=1;
+    jianYi=0;
+    jiaYi=0;
+    for(int i=0;i<3;i++)
+        panDingQu[i]=nullptr;
+    stateJiu=false;
+    playCount=0;
 }
 
 CPlayer::~CPlayer()
@@ -20,156 +32,177 @@ CPlayer::~CPlayer()
 
 }
 
+void CPlayer::nextPhase()
+{
+    do
+    {
+        currentPhase++;
+    }while(currentPhase<=PHASE_AFTEREND&&abandonPhase[currentPhase]);
+    if(currentPhase>PHASE_AFTEREND)
+    {
+        game->roundEnd();
+        return;
+    }
+    new CEvent(game);
+    switch (currentPhase) {
+    case PHASE_JUDGEPHASE:
+        phaseJudge();
+        break;
+    case PHASE_DRAWPHASE:
+        phaseDraw();
+        break;
+    case PHASE_PLAYPHASE:
+        phasePlay();
+        break;
+    case PHASE_DISCARDPHASE:
+        phaseDiscard();
+        break;
+    default:
+        break;
+    }
+    phaseCallback(currentPhase);
+    game->addFunc(std::bind(nextPhase,this));
+    emit game->newData();
+}
+
 void CPlayer::roundInit()
 {
     roundMaxSha=1;
     roundUsedSha=0;
-    notDrawCard=false;
+    roundJiuUsed=false;
+    currentPhase=-1;
     for(int i=0;i<18;i++)
     {
         abandonPhase[i]=false;
     }
-    CEvent roundEvent(game);
-    roundEvent.funcDelete=[=](){emit game->signalNextRound();};
-    for(int i=PHASE_BEFOREBEGIN;i<=PHASE_BEFOREJUDGE;i++)
-    {
-        if(!abandonPhase[i])
-        {
-            phaseCallback(i);
-            CHECKEVENT(roundEvent);
-        }
-    }
-    if(!abandonPhase[PHASE_JUDGEPHASE])
-    {
-        phaseJudge();
-        CHECKEVENT(roundEvent);
-    }
-    for(int i=PHASE_AFTERJUDGE;i<=PHASE_BEFOREDRAW;i++)
-    {
-        if(!abandonPhase[i])
-        {
-            phaseCallback(i);
-            CHECKEVENT(roundEvent);
-        }
-    }
-    if(!abandonPhase[PHASE_DRAWPHASE])
-    {
-        phaseDraw();
-        CHECKEVENT(roundEvent);
-    }
-    for(int i=PHASE_AFTERDRAW;i<=PHASE_BEFOREPLAY;i++)
-    {
-        if(!abandonPhase[i])
-        {
-            phaseCallback(i);
-            CHECKEVENT(roundEvent);
-        }
-    }
-    phaseCallback(PHASE_PLAYPHASE);
-    CHECKEVENT(roundEvent);
-    phaseCallback(PHASE_COUNTMAXSHA);
-    CHECKEVENT(roundEvent);
-    phasePlay();
-}
-
-void CPlayer::phasePlay()
-{
-
+    nextPhase();
 }
 
 void CPlayer::phaseDraw()
 {
-    CEvent drawEvent(game);
-    int drawCount=2;
-    phaseCallback(PHASE_DRAWPHASE,&drawCount);
-    CHECKEVENT(drawEvent);
-    if(!notDrawCard)
-    {
-        auto cards=game->drawCard(drawCount);
-        this->getCard(cards);
-    }
+    drawCount=2;
+    game->smartAddFunc([&](){
+        if(drawCount)
+        {
+            QSet<quint8> pset;
+            pset.insert(this->position);
+            auto f=std::bind(game->needCard,game,drawCount,pset);
+            game->insertMultiFunc(f);
+            game->insertMultiFunc([&](){
+                getCard(game->getDrawnCards());
+                emit game->newData();
+            });
+            game->smartInsertOver();
+        }
+        emit game->newData();
+    });
+}
+
+void CPlayer::panDingQuAdd(CCard *card)
+{
+    panDingQu[card->type->type2-15]=card;
+}
+
+void CPlayer::panDingQuRemove(CCard *card)
+{
+    panDingQu[card->type->type2-15]=nullptr;
 }
 
 void CPlayer::phaseJudge()
 {
-    CEvent judgePhaseEvent(game);
-    CCard* judgeCard;
-    auto it=panDingQu.begin();
-    while(it!=panDingQu.end())
+    for(int i=0;i<3;i++)
     {
-        CEvent judgeEvent(game);
-        CCard* card=*it;
-        //结束时如果判定牌和延时锦囊没有被人收掉，就放进弃牌堆
-        judgeEvent.funcDelete=[&](){
-            QList<CCard*> clist;
-            if(panDingQu.contains(card))
-            {
-                clist.clear();
-                clist.append(card);
-                panDingQu.erase(it);
-                discardCard(clist,DISCARDREASON_YANSHIJINNANG);
-            }
-            if(judgeCardArea.contains(judgeCard))
-            {
-                clist.clear();
-                clist.append(judgeCard);
-                judgeCardArea.removeOne(judgeCard);
-                discardCard(clist,DISCARDREASON_JUDGE);
-            }
-            it=panDingQu.begin();
-        };
-        judgeTip(card->type->name);
-        judgeCard=needJudge();
-        CHECKEVENT(judgeEvent);
-        phaseCallback(PHASE_CARDTRANSFORM,&judgeCard);
-        CHECKEVENT(judgeEvent);
-        switch (card->type->type2) {
-        case CARD_LEBUSISHU:
-            if(judgeCard->suit!=SUIT_HONGTAO)
-            {
-                for(int i=PHASE_BEFOREPLAY;i<=PHASE_AFTERPLAY;i++)
-                    abandonPhase[i]=true;
-            }
-            break;
-        case CARD_BINGLIANGCUNDUAN:
-            if(judgeCard->suit!=SUIT_MEIHUA)
-            {
-                for(int i=PHASE_BEFOREDRAW;i<=PHASE_AFTERDRAW;i++)
-                    abandonPhase[i]=true;
-            }
-            break;
-        case CARD_SHANDIAN:
-            if(judgeCard->suit==SUIT_HEITAO&&card->number>=2&&card->number<=9)
-            {
-                CInjured *inj=new CInjured(3,card,nullptr,ATTRIBUTE_LEI,false);
-                injured(inj);
-            }
-            else
-            {
-                CPlayer *nap=this;
-                do
-                {
-                    nap=game->nextAlivePlayer(nap->position);
-                }while(!nap->canBeTarget(card)&&nap!=this);//寻找下一个能成为闪电目标的人
-                panDingQu.removeOne(card);
-                if(nap==this)
-                {
-                    judgePhaseEvent.funcDelete=[=](){
-                        panDingQu.append(card);
-                    };
+        CCard* card=panDingQu[i];
+        if(!card) continue;
+        auto f=std::bind([&](CCard* card){
+            CEvent *je=new CEvent(game);
+            emit game->judgeTip(card->type->type2);
+            je->addFunc(std::bind(judge,this));
+            auto f=std::bind([&](CCard* card){
+                CTempCard tcard(judgeResult);
+                phaseCallback(PHASE_CARDTRANSFORM,&tcard);
+                switch (card->type->type2) {
+                case CARD_LEBUSISHU:
+                    if(tcard.suit!=SUIT_HONGTAO)
+                    {
+                        emit game->judgeSucceeded(judgeResult,true);
+                        for(int i=PHASE_BEFOREPLAY;i<=PHASE_AFTERPLAY;i++)
+                            abandonPhase[i]=true;
+                    }
+                    else
+                        emit game->judgeSucceeded(judgeResult,false);
+                    panDingQuRemove(card);
+                    je->addCard(card);
+                    break;
+                case CARD_BINGLIANGCUNDUAN:
+                    if(tcard.suit!=SUIT_MEIHUA)
+                    {
+                        emit game->judgeSucceeded(judgeResult,true);
+                        for(int i=PHASE_BEFOREDRAW;i<=PHASE_AFTERDRAW;i++)
+                            abandonPhase[i]=true;
+                    }
+                    else
+                        emit game->judgeSucceeded(judgeResult,false);
+                    panDingQuRemove(card);
+                    je->addCard(card);
+                    break;
+                case CARD_SHANDIAN:
+                    if(tcard.suit==SUIT_HEITAO&&tcard.number>=2&&tcard.number<=9)
+                    {
+                        emit game->judgeSucceeded(judgeResult,true);
+                        panDingQuRemove(card);
+                        je->addCard(card);
+                        CInjured *inj=new CInjured(3,card,nullptr,ATTRIBUTE_LEI,false);
+                        injured(inj);
+                    }
+                    else
+                    {
+                        emit game->judgeSucceeded(judgeResult,false);
+                        CPlayer *nap=this;
+                        do
+                        {
+                            nap=game->nextAlivePlayer(nap->position);
+                        }while(!nap->canBeTarget(card)&&nap!=this);//寻找下一个能成为闪电目标的人
+                        if(nap!=this)
+                        {
+                            panDingQuRemove(card);
+                            nap->panDingQuAdd(card);
+                        }
+                    }
+                default:
+                    break;
                 }
-                else
-                {
-                    nap->panDingQu.append(card);
-                }
-            }
-        default:
-            break;
-        }
+                emit game->newData();
+            },card);
+            je->addFunc(f);
+            emit game->newData();
+        },card);
+        game->smartAddFunc(f);
     }
 }
 
-void CPlayer::judgeTip(const QString &tip)
+void CPlayer::judge()
+{
+    CEvent *je=new CEvent(game);
+    phaseCallback(PHASE_ABOUTTOJUDGE);
+    je->addFunc(std::bind([&](CEvent *je){
+        auto f=std::bind(game->needCard,game,1,game->allPlayers());
+        game->insertMultiFunc(f);
+        game->insertMultiFunc([&](){
+            auto list=game->getDrawnCards();
+            judgeResult=list[0];
+            je->addCard(judgeResult);
+            emit game->newData();
+        });
+        game->smartInsertOver();
+        emit game->newData();
+    },je));
+    phaseCallback(PHASE_JUDGING);
+    phaseCallback(PHASE_JUDGED);
+    emit game->newData();
+}
+
+void CPlayer::phaseDiscard()
 {
 
 }
@@ -184,15 +217,12 @@ void CPlayer::injured(CInjured *inj)
     CEvent injuryEvent(game);
     injuryEvent.funcDelete=[=](){inj->deleteLater();};
     phaseCallback(PHASE_BEFOREINJURED,inj);
-    CHECKEVENT(injuryEvent);
     this->HP-=inj->point;
     if(this->HP<=0)
     {
         goingToDie();
-        CHECKEVENT(injuryEvent);
     }
     phaseCallback(PHASE_INJURED,inj);
-    CHECKEVENT(injuryEvent);
     if(this->isTieSuoLianHuan&&inj->attribute!=ATTRIBUTE_NONE&&inj->fromTieSuo==false)
     {
         this->isTieSuoLianHuan=false;
@@ -202,7 +232,6 @@ void CPlayer::injured(CInjured *inj)
                 CInjured *tsinj=new CInjured(inj);
                 player->injured(tsinj);
             }
-            CHECKEVENT(injuryEvent);
         }
     }
 }
@@ -214,24 +243,22 @@ void CPlayer::loseHP(int point)
     if(HP<=0)
     {
         goingToDie();
-        CHECKEVENT(losehpEvent);
     }
     phaseCallback(PHASE_LOSEHP,(void*)point);
 }
 
-void CPlayer::getCard(QList<CCard *> &list, CPlayer *player)
+void CPlayer::getCard(const QList<CCard *> &list, CPlayer *from)
 {
     this->hands.append(list);
-    phaseCallback(PHASE_GETCARD,player);
+    QList<CCard*> l=list;
+    phaseCallback(PHASE_GETCARD,&l,from);
 }
 
-void CPlayer::discardCard(QList<CCard*> &list,int reason)
+void CPlayer::discardCard(QList<CCard *> &list, int reason)
 {
     CEvent ev(game);
     phaseCallback(PHASE_ABOUTTODISCARD,&list,(void*)reason);
-    CHECKEVENT(ev);
     phaseCallback(PHASE_DISCARD,&list,(void*)reason);
-    CHECKEVENT(ev);
     foreach (CCard* card, list) {
         if(card->temp)
         {
@@ -247,98 +274,34 @@ void CPlayer::discardCard(QList<CCard*> &list,int reason)
     }
 }
 
-CCard* CPlayer::needJudge()
+void CPlayer::regPhase(int phase, CPlayerSkill *skill)
 {
-    CEvent pdevent(game);
-    CCard* card;
-    judgeCardArea.append(card);
-    phaseCallback(PHASE_ABOUTTOJUDGE,&judgeCardArea[0]);
-    if(!pdevent.available)
-    {
-        return judgeCardArea[0];
-    }
-    judgeCardArea=game->drawCard(1);
-    phaseCallback(PHASE_JUDGING,&judgeCardArea[0]);
-    phaseCallback(PHASE_JUDGED,&judgeCardArea[0]);
-    return card;
+    phaseRegister[phase].append(skill);
 }
 
-void CPlayer::regPhase(int phase, CSkill *skill, CPlayer *player)
-{
-    auto it=phaseRegister.find(phase);
-    if(it==phaseRegister.end())
-    {
-        it=phaseRegister.insert(phase,QMultiHash<CSkill*,CPlayer*>());
-    }
-    QMultiHash<CSkill*,CPlayer*> &hash=it.value();
-    hash.insert(skill,player);
-}
-
-void CPlayer::unregPhase(int phase, CSkill *skill, CPlayer *player)
+void CPlayer::unregPhase(int phase, CPlayerSkill *skill)
 {
     auto it=phaseRegister.find(phase);
     if(it!=phaseRegister.end())
     {
-        QMultiHash<CSkill*,CPlayer*> &hash=it.value();
-        auto it2=hash.find(skill);
-        while(it2!=hash.end()&&it2.key()==skill)
-        {
-            if(it2.value()==player)
-            {
-                hash.erase(it2);
-                return;
-            }
-            it2++;
-        }
+        it.value().removeAll(skill);
     }
 }
 
 void CPlayer::phaseCallback(int phase, void *extre, void *extre2, void *extre3, void *extre4)
 {
-    if(phase<=PHASE_AFTEREND) game->currentPhase=phase;
     auto it=phaseRegister.find(phase);
     if(it!=phaseRegister.end())
     {
-        QMultiHash<CSkill*,CPlayer*> &hash=it.value();
-        QList<QPair<CSkill*,CPlayer*>> llist;
-        auto ith=hash.begin();
-        while(ith!=hash.end())
-        {
-            llist.append(QPair<CSkill*,CPlayer*>(ith.key(),ith.value()));
-            ith++;
-        }
-        if(llist.size()>=2)
-        {
-            //按技能优先级排序，如果相同，则按位置排序。
-            std::sort(llist.begin(),llist.end(),[=](QPair<CSkill*,CPlayer*> &a,QPair<CSkill*,CPlayer*> &b){
-                if(a.first->priority<b.first->priority)
-                    return false;
-                else if(a.first->priority>b.first->priority)
-                    return true;
-                else
-                {
-                    if(a.second->position<this->position&&b.second->position>=this->position)
-                        return false;
-                    else if(a.second->position>=this->position&&b.second->position<this->position)
-                        return true;
-                    else if(a.second->position<b.second->position)
-                        return true;
-                    else
-                        return false;
-                }
-            });
-        }
-        CEvent ev(game);
-        foreach (auto pair, llist) {
-            CSkill* skill=pair.first;
-            CPlayer* player=pair.second;
-            skill->phaseCallback(player,phase,this,extre,extre2,extre3,extre4);
-            CHECKEVENT(ev);
+        QList<CPlayerSkill*> &list=it.value();
+        if(list.length()>1) game->sortRegister(position,list);
+        foreach (CPlayerSkill *ps, list) {
+            ps->phaseCallback(phase,this,extre,extre2,extre3,extre4);
         }
     }
 }
 
-void CPlayer::loseCard(QList<CCard *> &, int reason)
+void CPlayer::loseCard(QList<CCard *> &, int )
 {
 
 }
@@ -346,4 +309,110 @@ void CPlayer::loseCard(QList<CCard *> &, int reason)
 void CPlayer::goingToDie()
 {
 
+}
+
+void CPlayer::setOffline(bool b)
+{
+    offline=b;
+}
+
+void CPlayer::setGeneral(CGeneral *g)
+{
+    this->general=g;
+    setKingdom(g->kingdom);
+    this->maxHP=g->maxHP;
+    if(this->position==0&&game->players.size()>3)
+        maxHP++;
+    this->HP=maxHP;
+    setMaxHP(maxHP);
+    this->gender=g->gender;
+    CPlayerSkill *ps;
+    foreach (CSkill *skill, g->skill) {
+        if(!skill->zhugong||(this->position==0&&game->players.size()>2))
+        {
+            ps=new CPlayerSkill(skill,this);
+            this->skills.append(ps);
+        }
+    }
+}
+
+void CPlayer::setKingdom(quint8 kd)
+{
+    this->kingdom=kd;
+}
+
+void CPlayer::setMaxHP(quint8 mh)
+{
+    this->maxHP=mh;
+}
+
+void CPlayer::setHP(char hp)
+{
+    this->HP=hp;
+}
+
+int CPlayer::needSelect(const QString & , int , const QStringList )
+{
+    return 0;
+}
+
+void CPlayer::setRole(quint8 role)
+{
+    this->role=role;
+}
+
+void CPlayer::deliverCard(const QList<CCard *> &list)
+{
+    hands=list;
+}
+
+int CPlayer::distanceTo(CPlayer *player)
+{
+    int distance=game->countPositionDistance(this->position,player->position);
+    distance-=this->jianYi;
+    distance+=player->jiaYi;
+    phaseCallback(PHASE_DISTANCE,player,&distance);
+    if(distance<0) distance=0;
+    return distance;
+}
+
+bool CPlayer::hasCard()
+{
+    if(hands.isEmpty())
+    {
+        for(int i=0;i<5;i++)
+        {
+            if(zhuangBei[i])
+                return true;
+        }
+        for(int i=0;i<3;i++)
+        {
+            if(panDingQu[i])
+                return true;
+        }
+        return false;
+    }
+    else
+        return true;
+}
+
+void CPlayer::needPlay(quint16 , QList<quint8> *, int number, CPlayer *, CCard *, int  , int )
+{
+    cardPlayed=false;
+    playCount=number;
+}
+
+void CPlayer::setStateJiu(bool b)
+{
+    stateJiu=b;
+}
+
+void CPlayer::endPlayPhase()
+{
+
+}
+
+void CPlayer::useCard(CCard *card, QList<CPlayer *> &list)
+{
+    card->type->useCard(this,card,list);
 }

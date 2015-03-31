@@ -49,6 +49,16 @@ class CCard;
 #define PHASE_JUDGED 39
 #define PHASE_CARDTRANSFORM 40
 #define PHASE_BEFOREINJURED 41
+#define PHASE_SUITTRANSFORM 42
+#define PHASE_SHADISTANCE 43
+#define PHASE_DISTANCE 44
+#define PHASE_CANUSECARD 45
+#define PHASE_CANPLAYCARD 46
+#define PHASE_JINNANGDISTANCE 47
+#define PHASE_CARDMINMAXTARGETS 48
+#define PHASE_TARGETCHANGE 49
+#define PHASE_SHAINJURYPOINT 50
+#define PHASE_CARDPLAYNUMBER 51
 #define PHASE_GAMESTART 100
 
 #define DISCARDREASON_DISCARD 0
@@ -67,22 +77,26 @@ class CCard;
 
 #define MARKTYPE_KUANGFENG 0
 
+#include "general/cplayerskill.h"
+
 class CSkill:public QObject
 {
     Q_OBJECT
 public:
     CSkill();
     ~CSkill();
-    virtual void activeSkill(CPlayer*);
-    virtual void getEvent(CPlayer*);
-    virtual void loseEvent(CPlayer*);
-    virtual void phaseCallback(CPlayer* skillOwner,int phase,CPlayer* who=nullptr, void* extre=nullptr,
+    virtual void activeSkill(CPlayerSkill*);
+    virtual void getEvent(CPlayerSkill*);
+    virtual void loseEvent(CPlayerSkill*);
+    virtual void phaseCallback(CPlayerSkill* skillOwner,int phase,CPlayer* player=nullptr, void* extre=nullptr,
                                void* extre2=nullptr, void* extre3=nullptr, void* extre4=nullptr);
     QString name;
     QString description;
-    bool active;
     bool lock;
-    bool defaultOn;
+    bool onlyOnce;
+    bool active;
+    bool clickable,defaultOn;
+    bool zhugong;
     int priority;
 };
 

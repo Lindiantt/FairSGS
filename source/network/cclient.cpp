@@ -4,25 +4,28 @@
 #include "ui_mainwindow.h"
 extern MainWindow *w;
 
-#include "ui/dialogconnect.h"
+#include "ui/dialog/dialogconnect.h"
 #include <qmessagebox.h>
 #include "define.h"
-#include "ui/mainwindowclient.h"
+#include "ui/mainwindow/mainwindowclient.h"
 #include "ui_mainwindowclient.h"
-#include "ui/widgetroom.h"
+#include "ui/widget/widgetroom.h"
 #include <qmovie.h>
-#include "ui/dialogchooseroom.h"
-#include "ui/mainwindowserver.h"
+#include "ui/dialog/dialogchooseroom.h"
+#include "ui/mainwindow/mainwindowserver.h"
+#include "game/cgameclient.h"
 
 #define COMPARE(a,b) if((a)!=(b)){end2("与服务器断开连接。");return false;}
 
 CClient::CClient(QString ip,quint16 port,quint8 authmode,QByteArray password,QString user,QObject *parent) : QObject(parent)
 {
+    game=nullptr;
     this->ip=ip;
     this->port=port;
     this->authmode=authmode;
     this->password=password;
     this->user=user;
+    alreadyEnd=false;
     if(!w->dialogConnect)
     {
         w->dialogConnect=new DialogConnect(w);
@@ -42,7 +45,11 @@ CClient::CClient(QString ip,quint16 port,quint8 authmode,QByteArray password,QSt
 
 CClient::~CClient()
 {
-
+    w->client=nullptr;
+    if(game)
+    {
+        game->deleteLater();
+    }
 }
 
 void CClient::handleTimeout()
@@ -61,8 +68,8 @@ void CClient::handleConnected()
     {
         w->mwCLient=new MainWindowClient();
     }
-    w->mwCLient->showMaximized();
     w->mwCLient->init();
+    w->mwCLient->showMaximized();
     QByteArray sendbuf;
     quint16 vn=VALIDATIONNUMBER;
     vn=qToLittleEndian(vn);
@@ -109,7 +116,7 @@ void CClient::handleConnected()
 
 void CClient::handleDisconnected()
 {
-    end2("与服务器断开连接。");
+    end2("服务器主动断开连接！");
 }
 
 void CClient::handleRead()
@@ -150,20 +157,31 @@ aa:
         }
         if(socket.bytesAvailable()<bytesRemain)
             return;
+        ba=socket.read(bytesRemain);
+        bytesRemain=0;
         switch(state)
         {
         case CLIENTSTATE_INSERVER:
-            if(!rhInserver()) return;
+            if(!rhInserver(ba)) return;
             break;
         case CLIENTSTATE_CHOOSEROOM:
-            if(!w->mwCLient->dialogChooseRoom->rhChooseRoom()) return;
+            if(!w->mwCLient->dialogChooseRoom->rhChooseRoom(ba)) return;
             break;
         case CLIENTSTATE_ENTERROOM:
-            if(!w->mwCLient->ui->widgetRoom->rhEnterRoom())
+            if(!w->mwCLient->ui->widgetRoom->rhEnterRoom(ba))
             {
                 end2("与服务器断开连接。");
                 return;
             }
+            break;
+        case CLIENTSTATE_INROOM:
+            if(!w->mwCLient->ui->widgetRoom->rhInRoom(ba)) return;
+            break;
+        case CLIENTSTATE_STARTGAME:
+            if(!w->mwCLient->ui->widgetRoom->rhStartGame(ba)) return;
+            break;
+        case CLIENTSTATE_PLAYING:
+            if(!w->mwCLient->ui->widgetGame->rhPlaying(ba)) return;
             break;
         default:
             break;
@@ -191,6 +209,8 @@ void CClient::end()
 
 void CClient::end2(const QString &err)
 {
+    if(!this||alreadyEnd) return;
+    alreadyEnd=true;
     w->mwCLient->hide();
     if(w->mwCLient->dialogChooseRoom) w->mwCLient->dialogChooseRoom->hide();
     end();
@@ -229,9 +249,9 @@ bool CClient::rhConnected()
         ba=socket.read(1);
         COMPARE(ba.length(),1);
         QString s;
-        if(ba[0]==0)
+        if(ba[0]==(char)0)
             s="无";
-        else if(ba[0]==1)
+        else if(ba[0]==(char)1)
             s="密码";
         else
             s="用户名+密码";
@@ -248,12 +268,17 @@ bool CClient::rhConnected()
         end2(s);
         return false;
     }
-    COMPARE(ba[0],CONNECT_OK);
+    COMPARE(ba[0],(char)CONNECT_OK);
     ba=socket.read(15);
     COMPARE(ba.length(),15);
     memcpy(&maxRoom,ba.data(),4);
     maxRoom=qFromLittleEndian(maxRoom);
     numberOfPlayer=ba[4];
+    if(numberOfPlayer<2||numberOfPlayer>10)
+    {
+        end2("服务器错误！");
+        return false;
+    }
     shuangNei=ba[5]?true:false;
     operationTimeout=ba[6];
     wuXieTimeout=ba[7];
@@ -264,6 +289,8 @@ bool CClient::rhConnected()
     udpConfirmed=false;
     if(udp.bind())
     {
+        connect(&udp,udp.readyRead,this,this->handleUdpRead);
+        udpWaitTime=5000;
         udpConfirm();
     }
     bytesRemain=0;
@@ -272,20 +299,24 @@ bool CClient::rhConnected()
     return true;
 }
 
+void CClient::handleUdpRead()
+{
+
+}
+
 void CClient::udpConfirm()
 {
     if(!udpConfirmed)
     {
-        udp.writeDatagram((char*)udpCode,4,socket.peerAddress(),port);
-        QTimer::singleShot(10000,this,this->udpConfirm);
+        udp.writeDatagram((char*)&udpCode,4,socket.peerAddress(),port);
+        if(udpWaitTime<5000<<8)
+            QTimer::singleShot(udpWaitTime,this,this->udpConfirm);
+        udpWaitTime<<=1;
     }
 }
 
-bool CClient::rhInserver()
+bool CClient::rhInserver(QByteArray &ba)
 {
-    QByteArray ba;
-    ba=socket.read(bytesRemain);
-    bytesRemain=0;
     if(ba[0]==SERVER_CHOOSEROOM)
     {
         state=CLIENTSTATE_CHOOSEROOM;

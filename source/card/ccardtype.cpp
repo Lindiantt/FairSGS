@@ -1,8 +1,12 @@
 ﻿#include "ccardtype.h"
+#include "game/cplayer.h"
+#include "general/cskill.h"
 
 CCardType::CCardType()
 {
-
+    canSelectTarget=false;
+    minTargets=1;
+    maxTargets=1;
 }
 
 CCardType::~CCardType()
@@ -10,14 +14,65 @@ CCardType::~CCardType()
 
 }
 
-bool CCardType::canUse(CPlayer *)
+bool CCardType::canUse(CPlayer *player,CCard* card)
 {
-    return false;
+    bool b=true;
+    player->phaseCallback(PHASE_CANUSECARD,card,&b);
+    if(!b) return false;
+    if(availableTargets(player,card).isEmpty())
+        return false;
+    else return true;
 }
 
-void CCardType::useCard(CPlayer *)
+bool CCardType::canPlay(CPlayer *player, CCard *card)
+{
+    bool b=true;
+    player->phaseCallback(PHASE_CANPLAYCARD,card,&b);
+    return b;
+}
+
+void CCardType::useCard(CPlayer *, CCard* , QList<CPlayer *> &)
 {
 
+}
+
+/*int CCardType::getMaxTargets(CPlayer *player, CCard *card)
+{
+    int min=minTargets;
+    int max=maxTargets;
+    player->phaseCallback(PHASE_CARDMINMAXTARGETS,card,&min,&max);
+    return max;
+}*/
+
+bool CCardType::cardUseCheck(CPlayer *player, CCard *card, QList<CPlayer *> &list)
+{
+    int min=minTargets;
+    int max=maxTargets;
+    player->phaseCallback(PHASE_CARDMINMAXTARGETS,card,&min,&max);
+    if(list.size()<min||list.size()>max) return false;
+    auto alist=availableTargets(player,card);
+    if(!canSelectTarget)
+    {
+        if(alist==list)
+            return true;
+        else
+            return false;
+    }
+    else
+    {
+        CPlayer *pl;
+        foreach (pl, list) {
+            if(!alist.contains(pl))
+                return false;
+        }
+        return true;
+    }
+}
+
+QList<CPlayer*> CCardType::availableTargets(CPlayer*,CCard*)
+{
+    QList<CPlayer*> list;
+    return list;
 }
 
 void CCardType::createType(CCardType **&types)

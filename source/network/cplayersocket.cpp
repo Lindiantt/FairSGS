@@ -2,6 +2,7 @@
 #include "network/cplayersocket.h"
 #include "game/cplayerserver.h"
 #include "croom.h"
+#include <random>
 
 #define COMPARE(a,b) if((a)!=(b)){this->deleteLater();return false;}
 
@@ -15,16 +16,24 @@ CPlayerSocket::CPlayerSocket(QTcpSocket *socket, QObject *parent) : QObject(pare
     connect(socket,socket->readyRead,this,this->handleRead);
     connect(socket,socket->disconnected,this,this->handleDisconnected);
     connect(socket,socket->bytesWritten,this,this->handleWrite);
-    /*timer.setSingleShot(true);
+    timer.setSingleShot(true);
     connect(&timer,timer.timeout,this,this->handleTimeout);
-    timer.start(30000);*/
+    timer.start(30000);
+    hostAddress=socket->peerAddress();
+    directDelete=false;
 }
 
 CPlayerSocket::~CPlayerSocket()
 {
+    if(directDelete) return;
     socket->deleteLater();
-    if(state>=SOCKETSTATE_CONNECTED) server->removeSocket(this);
-    server->log(socket->peerAddress().toString()+"断开连接");
+    if(state>=SOCKETSTATE_CONNECTED)
+        server->removeSocket(this);
+    if(state==SOCKETSTATE_PLAYER)
+        currentRoom->leave(this);
+    else if(state==SOCKETSTATE_ONLOOKER||state==SOCKETSTATE_ONLOOKING)
+        currentRoom->onlooker.removeOne(this);
+    server->log(hostAddress.toString()+"断开连接");
 }
 
 void CPlayerSocket::handleRead()
@@ -33,18 +42,12 @@ aa:
     switch (state) {
     case SOCKETSTATE_INIT:
         if(!rhInit()) return;
-        qDebug("init");
         break;
     case SOCKETSTATE_VARIFIED:
         if(!rhVerified()) return;
-        qDebug("varified");
         break;
     case SOCKETSTATE_CONNECTED:
         if(!rhConnected()) return;
-        qDebug("connected");
-        break;
-    case SOCKETSTATE_PLAYING:
-        //player;
         break;
     default:
     {
@@ -67,10 +70,17 @@ aa:
         }
         if(socket->bytesAvailable()<bytesRemain)
             return;
+        ba=socket->read(bytesRemain);
+        bytesRemain=0;
         switch (state) {
         case SOCKETSTATE_CHOOSEROOM:
-            if(!rhChooseRoom()) return;
-            qDebug("choose room");
+            if(!rhChooseRoom(ba)) return;
+            break;
+        case SOCKETSTATE_PLAYER:
+            if(!currentRoom->rhInRoomPlayer(ba,this)) return;
+            break;
+        case SOCKETSTATE_PLAYING:
+            if(!player->rhPlaying(ba)) return;
             break;
         default:
             return;
@@ -91,13 +101,11 @@ void CPlayerSocket::handleWrite()
 
 void CPlayerSocket::handleDisconnected()
 {
+    this->deleteLater();
     if(state==SOCKETSTATE_PLAYING)
     {
-
+        player->setOffline(true);
     }
-    else
-        this->deleteLater();
-
 }
 
 void CPlayerSocket::handleTimeout()
@@ -227,7 +235,12 @@ bool CPlayerSocket::rhVerified()
         state=SOCKETSTATE_CONNECTED;
         sendbuf+=(char)CONNECT_OK;
         sendbuf+=server->importantInfo;
-        udpCode=qrand();
+    {
+        std::default_random_engine re(QDateTime::currentMSecsSinceEpoch());
+        std::uniform_int_distribution<uint> dis(0,0xffffffff);
+        udpCode=dis(re);
+    }
+        server->udpVals.insert(udpCode,this);
         sendbuf.append((char*)&udpCode,4);
         server->numberOfSockets++;
         server->sockets.append(this);
@@ -243,7 +256,7 @@ bool CPlayerSocket::rhVerified()
         }
         i=socket->read(buf,1);
         COMPARE(i,1);
-        if(buf[0]>21||buf[0]<1)
+        if(buf[0]>30||buf[0]<1)
         {
             this->deleteLater();
             return false;
@@ -279,7 +292,9 @@ bool CPlayerSocket::rhVerified()
 
 bool CPlayerSocket::rhConnected()
 {
+    timer.stop();
     bool reconnect=false;
+#ifdef QT_NO_DEBUG
     if(server->auth<2)//检测是否断线重连
     {
         foreach (CPlayerSocket *handle,server->sockets) {
@@ -304,6 +319,7 @@ bool CPlayerSocket::rhConnected()
             }
         }
     }
+#endif
     if(reconnect)
     {
         //断线重连
@@ -394,10 +410,11 @@ void CPlayerSocket::onlookRoom(CRoom *)
 
 }
 
-bool CPlayerSocket::rhChooseRoom()
+bool CPlayerSocket::rhChooseRoom(QByteArray &)
 {
     QByteArray ba,sendbuf;
     ba=socket->read(bytesRemain);
+    bytesRemain=0;
     uint u;
     switch (ba[0]) {
     case ROOM_JOIN:

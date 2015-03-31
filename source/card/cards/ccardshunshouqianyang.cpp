@@ -1,0 +1,29 @@
+﻿#include "card/ccardtype.h"
+#include "game/cplayer.h"
+#include "game/cgame.h"
+#include "general/cskill.h"
+
+QList<CPlayer*> CCardShunShouQianYang::availableTargets(CPlayer *player, CCard *card)
+{
+    QList<CPlayer*> list;
+    CPlayer* p;
+    int jnd=1;
+    player->phaseCallback(PHASE_JINNANGDISTANCE,card,&jnd);
+    foreach (p, player->game->players) {
+        if(p!=player&&p->isAlive)
+        {
+            if(jnd!=-1&&player->distanceTo(p)>jnd) continue;
+            bool b=true;
+            p->phaseCallback(PHASE_CANBETARGET,card,player,&b);
+            if(!b) continue;
+            if(p->hasCard())
+                list.append(p);
+        }
+    }
+    return list;
+}
+
+CCardShunShouQianYang::CCardShunShouQianYang()
+{
+    canSelectTarget=true;
+}

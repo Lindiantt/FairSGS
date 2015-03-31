@@ -3,6 +3,7 @@
 
 #include "pch.h"
 #include <QMainWindow>
+
 class CCard;
 class CServer;
 class CClient;
@@ -17,6 +18,11 @@ class QComboBox;
 class MainWindowClient;
 class CImage;
 class QLabel;
+class DialogRegister;
+class QCheckBox;
+class CIcon;
+class QPushButton;
+class CCheckPointer;
 
 namespace Ui {
 class MainWindow;
@@ -32,7 +38,11 @@ public:
     bool splitAddress(const QString &, QString &hostname, quint16 &port);
     QByteArray generateUID();
     void setupDB();
-    void imageLoad(CImage *,QLabel *);
+    void imageLoad(CImage *,void*,void*);
+    void imageLoad(CImage *,void *p=nullptr);
+    void imageDirectLoad(CImage *,void *);
+    void iconLoad(CIcon*,QPushButton*,void* par);
+    void iconLoad(CIcon*,QPushButton *p=nullptr);
 
     Ui::MainWindow *ui;
     QComboBox* comboBoxShen[8];
@@ -47,10 +57,12 @@ public:
     workerLoadSource *wLoadSource;
     CClient *client;
     MainWindowClient *mwCLient;
+    DialogRegister *dialogRegister;
 
     CCardType **cardType;
     QList<CCard*> cardBiao,cardEx,cardJunzheng,cardJiexiantupo;
-    CGeneral **allGenerals;
+    CGeneral **allGenerals,**generalShen;
+    QCheckBox** checkBoxBans;
 public slots:
     void handleRun(std::function<void()>func);
 signals:
@@ -88,6 +100,8 @@ private slots:
     void on_comboBoxServerAddress_currentTextChanged(const QString &arg1);
 
     void on_lineEditPassword_textChanged(const QString &arg1);
+
+    void on_pushButtonRegister_clicked();
 
 private:
     QByteArray savedPassword;

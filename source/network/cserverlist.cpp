@@ -5,7 +5,7 @@
 #include "mainwindow.h"
 extern MainWindow *w;
 
-#include "ui/mainwindowserverlist.h"
+#include "ui/mainwindow/mainwindowserverlist.h"
 
 CServerList::CServerList()
 {

@@ -1,4 +1,5 @@
 ﻿#include "cskill.h"
+#include "game/cplayer.h"
 
 CSkill::CSkill()
 {
@@ -6,6 +7,8 @@ CSkill::CSkill()
     defaultOn=false;
     lock=false;
     active=false;
+    onlyOnce=false;
+    zhugong=false;
 }
 
 CSkill::~CSkill()
@@ -13,22 +16,22 @@ CSkill::~CSkill()
 
 }
 
-void CSkill::activeSkill(CPlayer* palyer)
+void CSkill::activeSkill(CPlayerSkill* )
 {
 
 }
 
-void CSkill::getEvent(CPlayer *player)
+void CSkill::getEvent(CPlayerSkill *)
 {
 
 }
 
-void CSkill::loseEvent(CPlayer *player)
+void CSkill::loseEvent(CPlayerSkill *)
 {
 
 }
 
-void CSkill::phaseCallback(CPlayer* skillOwner, int phase, CPlayer* who, void* extre, void* extre2, void *extre3, void *extre4)
+void CSkill::phaseCallback(CPlayerSkill* , int , CPlayer* , void* , void* , void *, void *)
 {
 
 }

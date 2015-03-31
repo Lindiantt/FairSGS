@@ -5,7 +5,7 @@ extern MainWindow *w;
 #include "ui_mainwindowserverlist.h"
 
 #include "define.h"
-#include "ui/mainwindowserverlist.h"
+#include "ui/mainwindow/mainwindowserverlist.h"
 
 CSLSocketHandle::CSLSocketHandle(QHostAddress &address,quint16 port,QTableWidgetItem* item)
 {

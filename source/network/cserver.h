@@ -26,8 +26,9 @@ public:
     uint lastRoomID;
 
     QString serverName;
-    quint8 numberOfPlayer,choices,choicesZG,choicesNJ;
-    uint maxRoom;
+    char numberOfPlayer;
+    quint8 choices,choicesZG,choicesNJ;
+    int maxRoom;
     bool shuangNei;
     quint8 numberOfNei;
     bool cardEX,cardJunZheng,cardJieXianTuPo;
@@ -37,7 +38,7 @@ public:
     quint8 auth;
     char password[20];
     quint8 operationTimeout,wuXieTimeout,extreTime,choiceTimeout;
-    uint maxOnlooker;
+    int maxOnlooker;
     bool allowChat,banSameIP;
     quint16 port;
 
@@ -48,7 +49,8 @@ public:
     QSqlQuery querySelect,queryInsert;
 
     QList<CCard*> availableCards;
-    QList<CGeneral*> availableZhugong,availableGenerals;
+    QList<CGeneral*> availableZhugong;
+    QHash<int,QList<CGeneral*>> availableGenerals;
     QList<quint8> roles;
 
     int logCount;

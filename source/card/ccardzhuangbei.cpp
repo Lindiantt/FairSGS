@@ -1,7 +1,7 @@
 ﻿#include "card/ccardtype.h"
 #include "game/cplayer.h"
 
-void CCardZhuangbei::callback(CPlayer *,int phase)
+void CCardZhuangbei::callback(CPlayer *,int )
 {
 
 }
@@ -21,3 +21,9 @@ void CCardZhuangbei::wearEvent(CPlayer *)
 
 }
 
+QList<CPlayer*> CCardZhuangbei::availableTargets(CPlayer *player, CCard *)
+{
+    QList<CPlayer*> list;
+    list.append(player);
+    return list;
+}

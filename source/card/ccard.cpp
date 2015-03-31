@@ -1,5 +1,6 @@
 ﻿#include "ccard.h"
-
+#include "mainwindow.h"
+extern MainWindow *w;
 
 #define NEWCARD {c=new CCard;c->id=i++;}
 
@@ -13,7 +14,23 @@ CCard::~CCard()
 
 }
 
-void CCard::init(CCardType** types,QList<CCard *> &cardsBiao,QList<CCard *> &cardsEx,QList<CCard *> &cardsJunzheng,QList<CCard *> &cardsJiexiantupo)
+QString CCard::numberString()
+{
+    switch (number) {
+    case 1:
+        return "A";
+    case 11:
+        return "J";
+    case 12:
+        return "Q";
+    case 13:
+        return "K";
+    default:
+        return QString::number(number);
+    }
+}
+
+void CCard::init(CCardType** &types,QList<CCard *> &cardsBiao,QList<CCard *> &cardsEx,QList<CCard *> &cardsJunzheng,QList<CCard *> &cardsJiexiantupo)
 {
     CCard* c;
     int i=0;
@@ -986,4 +1003,18 @@ void CCard::init(CCardType** types,QList<CCard *> &cardsBiao,QList<CCard *> &car
     c->type=types[CARD_MUNIULIUMA];
     cardsJiexiantupo.append(c);
 
+}
+
+CCard* CCard::find(quint8 id)
+{
+    if(id<104)
+        return w->cardBiao[id];
+    else if(id<108)
+        return w->cardEx[id-104];
+    else if(id<160)
+        return w->cardJunzheng[id-108];
+    else if(id<161)
+        return w->cardJiexiantupo[0];
+    else
+        return nullptr;
 }

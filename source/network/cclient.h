@@ -3,6 +3,8 @@
 
 #include "pch.h"
 
+class CGameClient;
+
 class CClient : public QObject
 {
     Q_OBJECT
@@ -24,10 +26,14 @@ public:
     uint maxRoom;
     quint8 numberOfPlayer,operationTimeout,wuXieTimeout,extreTime,choiceTimeout;
     bool shuangNei,allowChat;
+    bool alreadyEnd;
 
     quint16 bytesRemain;
     int udpCode;
     bool udpConfirmed;
+    int udpWaitTime;
+
+    CGameClient *game;
 signals:
 
 public slots:
@@ -38,10 +44,11 @@ public slots:
     void handleError(QAbstractSocket::SocketError);
     void udpConfirm();
     void udpLive();
+    void handleUdpRead();
 private:
     bool rhConnected();
-    bool rhInserver();
-    bool rhChooseRoom();
+    bool rhInserver(QByteArray &);
+    bool rhChooseRoom(QByteArray &);
 };
 
 #endif // CCLIENT_H
