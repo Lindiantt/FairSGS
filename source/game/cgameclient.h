@@ -15,15 +15,14 @@ public:
     void s1needRole();
     void s2needChooseGeneral();
     void s3needAllGeneralAndCards();
-    void s4skillSetup();
-    void needCard(int,QSet<quint8>);
+    void needCard(int,const QList<CPlayer*> &);
     void needWuXieKeJi();
     void startNextRound();
     //QByteArray waitForData();
     QLinkedList<QByteArray> serverData;
     WidgetGame *widgetGame;
     CPlayerClientMe *me;
-    int selection;
+    COperation *opWuXie;
     void cardDirection(CCard*);
     void cardOKCheck();
     void checkSecondStage();

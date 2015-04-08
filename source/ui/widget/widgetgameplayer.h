@@ -29,7 +29,7 @@ public:
     void moveWidgets();
     CPlayerClient *player;
     WidgetTimeCount *widgetTimeCount;
-    QLabel *labelFrame;
+    QLabel *labelFrame,*labelPhase;
     Ui::WidgetGamePlayer *ui;
     QGraphicsOpacityEffect *opEffect;
 

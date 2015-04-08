@@ -6,6 +6,7 @@
 #include "mainwindow.h"
 extern MainWindow *w;
 #include "game/cinjured.h"
+#include "card/ccard.h"
 
 bool CCardSha::canUse(CPlayer *player,CCard* card)
 {
@@ -43,37 +44,72 @@ CCardSha::CCardSha()
     attribute=ATTRIBUTE_NONE;
 }
 
+CCardHuoSha::CCardHuoSha()
+{
+    attribute=ATTRIBUTE_HUO;
+}
+
+CCardLeiSha::CCardLeiSha()
+{
+    attribute=ATTRIBUTE_LEI;
+}
+
 void CCardSha::useCard(CPlayer *player, CCard *card, QList<CPlayer *> &list)
 {
     CEvent* ev=new CEvent(player->game);
     ev->addCard(card);
+    player->roundUsedSha++;
     int point=1;
     if(player->stateJiu)
     {
         point++;
         player->setStateJiu(false);
     }
-    CCardSha *sha=static_cast<CCardSha*>(card->type);
     player->phaseCallback(PHASE_SHAINJURYPOINT,&point);
-    player->phaseCallback(PHASE_TARGETCHANGE,card,&list);
-    auto f=std::bind([&](CPlayer *player,CCard *card, QList<CPlayer *> list,int point){
-        CPlayer *target;
-        CEvent *ev2=new CEvent(player->game);
-        foreach (target, list) {
-            auto f2=std::bind(target->needPlay,target,CARDTYPE_SHAN,nullptr,1,player,card,PLAYMODE_USE,CARDMODE_HANDS);
+    QList<CPlayer*> *targets=new QList<CPlayer*>();
+	*targets=list;
+	player->phaseCallback(PHASE_TARGETCHANGE,card,targets);
+	auto f=std::bind([&](CPlayer *player, CCard *card,QList<CPlayer*> *targets,int point){
+		CPlayer *target;
+		CEvent *ev2=new CEvent(player->game);
+		foreach (target, *targets) {
+			auto f2=std::bind(target->needPlay,target,0xff,CARDTYPE_SHAN,QList<quint8>(),1,player,card,PLAYMODE_USE,
+                              CARDMODE_HANDS,QList<CPlayer*>());
             ev2->addFunc(f2);
             auto f=std::bind([&](CPlayer* player,CPlayer* target,CCard* card,int point){
-                if(!target->cardPlayed)
+                CEvent *ev3=new CEvent(player->game);
+                if(target->cardPlayed)
                 {
-                    CInjured *inj=new CInjured(point,card,player,sha->attribute);
-                    target->injured(inj);
+                    bool b=false;
+                    player->phaseCallback(PHASE_CARDPLAYAGAIN,&b,target,card);
+                    if(b)
+                    {
+                        auto f=std::bind(target->needPlay,target,0xff,CARDTYPE_SHAN,QList<quint8>(),1,player,card,
+                                PLAYMODE_USE,CARDMODE_HANDS,QList<CPlayer*>());
+                        ev3->addFunc(f);
+                    }
                 }
+                auto f=std::bind(useCardCallback,this,player,target,card,point);
+                ev3->addFunc(f);
                 emit player->game->newData();
             },player,target,card,point);
             ev2->addFunc(f);
-        }
-        emit player->game->newData();
-    },player,card,list,point);
-    ev->addFunc(f);
+		}
+		delete targets;
+		emit player->game->newData();
+	},player,card,targets,point);
+	ev->addFunc(f);
+    emit player->game->newData();
+}
+
+void CCardSha::useCardCallback(CPlayer *player, CPlayer *target, CCard *card, int point)
+{
+    if(!target->cardPlayed)
+    {
+        CCardSha *sha=static_cast<CCardSha*>(card->type);
+        CInjured *inj=new CInjured(point,card,player,sha->attribute);
+        auto f=std::bind(target->injured,target,inj);
+        player->game->smartInsertFunc(f);
+    }
     emit player->game->newData();
 }

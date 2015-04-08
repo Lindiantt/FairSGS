@@ -47,7 +47,8 @@ void WidgetCard::setCard(CCard *card)
     else
         return;
     w->imageLoad(point,ui->labelPoint,this);
-    w->imageLoad(w->wLoadSource->suitsSmall[card->suit],ui->labelSuit,this);
+    w->imageLoad(card->suitIcon(),ui->labelSuit,this);
+    this->setToolTip(card->description());
 }
 
 void WidgetCard::paintEvent(QPaintEvent *ev)

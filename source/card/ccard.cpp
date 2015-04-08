@@ -1,6 +1,7 @@
 ﻿#include "ccard.h"
 #include "mainwindow.h"
 extern MainWindow *w;
+#include "thread/workerloadsource.h"
 
 #define NEWCARD {c=new CCard;c->id=i++;}
 
@@ -28,6 +29,42 @@ QString CCard::numberString()
     default:
         return QString::number(number);
     }
+}
+
+CImage* CCard::suitIcon()
+{
+    int j=1;
+    for(int i=0;i<5;i++)
+    {
+        if(suit==j)
+            return w->wLoadSource->suitsSmall[i];
+        j*=2;
+    }
+    return nullptr;
+}
+
+QString CCard::description()
+{
+    QString s,s2;
+    s=type->name+" ";
+    switch (suit) {
+    case SUIT_FANGKUAI:
+        s2="♦";
+        break;
+    case SUIT_HEITAO:
+        s2="♠";
+        break;
+    case SUIT_HONGTAO:
+        s2="♥";
+        break;
+    case SUIT_MEIHUA:
+        s2="♣";
+        break;
+    default:
+        break;
+    }
+    s+=s2+numberString();
+    return s;
 }
 
 void CCard::init(CCardType** &types,QList<CCard *> &cardsBiao,QList<CCard *> &cardsEx,QList<CCard *> &cardsJunzheng,QList<CCard *> &cardsJiexiantupo)

@@ -216,8 +216,6 @@ MainWindow::MainWindow(QWidget *parent) :
     b=settings->value("joingame",true).toBool();
     ui->checkBoxJoinGame->setChecked(b);
     settings->endGroup();
-
-    CCard::init(cardType,cardBiao,cardEx,cardJunzheng,cardJiexiantupo);
 }
 
 MainWindow::~MainWindow()

@@ -4,6 +4,8 @@
 #include "general/cskill.h"
 #include "mainwindow.h"
 extern MainWindow *w;
+#include "card/ccard.h"
+#include "game/cevent.h"
 
 QList<CPlayer*> CCardJieDaoShaRen::availableTargets(CPlayer *player, CCard *card)
 {
@@ -46,4 +48,51 @@ bool CCardJieDaoShaRen::cardUseCheck(CPlayer *player, CCard *card, QList<CPlayer
         if(!tal.contains(list[i*2+1])) return false;
     }
     return true;
+}
+
+void CCardJieDaoShaRen::useCard(CPlayer *player, CCard *card, QList<CPlayer *> &list)
+{
+    CEvent *ev=new CEvent(player->game);
+    ev->addCard(card);
+    QList<CPlayer*> *targets=new QList<CPlayer*>();
+    *targets=list;
+    player->phaseCallback(PHASE_TARGETCHANGE,card,targets);
+    auto f=std::bind([&](CPlayer *player, CCard *card,QList<CPlayer*> *targets){
+        CEvent *ev=new CEvent(player->game);
+        for(int i=0;i<(*targets).size();i+=2)
+        {
+            auto f=std::bind([&](CPlayer *player, CCard *card,CPlayer* target,CPlayer* target2){
+                CEvent* ev2=new CEvent(player->game);
+                std::function<void()> f;
+                f=std::bind(wuxiePlay,this,ev2);
+                ev2->addFunc(f);
+                QList<CPlayer*> shaTarget;
+                shaTarget.append(target2);
+                f=std::bind(CPlayer::needPlay,target,0xff,CARDTYPE_SHA,QList<quint8>(),1,nullptr,nullptr,PLAYMODE_USE,
+                            CARDMODE_HANDS,shaTarget);
+                ev2->addFunc(f);
+                f=std::bind([&](CPlayer *player, CPlayer* target){
+                    if(!target->cardPlayed)
+                    {
+                        CEvent *ev2=new CEvent(player->game);
+                        CCard *zb=target->zhuangBei[0];
+                        target->setZhuangBei(0,nullptr);
+                        QList<CCard*> zbs;
+                        zbs.append(zb);
+                        target->phaseCallback(PHASE_LOSECARD,&zbs,(void*)LOSECARDREASON_STEAL);
+                        auto f=std::bind(player->getCard,player,zbs,target);
+                        ev2->addFunc(f);
+                    }
+                    emit player->game->newData();
+                },player,target);
+                ev2->addFunc(f);
+                emit player->game->newData();
+            },player,card,(*targets)[i],(*targets)[i+1]);
+            ev->addFunc(f);
+        }
+        delete targets;
+        emit player->game->newData();
+    },player,card,targets);
+    ev->addFunc(f);
+    emit player->game->newData();
 }

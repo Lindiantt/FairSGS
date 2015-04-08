@@ -1,11 +1,11 @@
 ﻿#ifndef CCARD_H
 #define CCARD_H
 
-#define SUIT_HONGTAO 0
-#define SUIT_FANGKUAI 1
-#define SUIT_HEITAO 2
-#define SUIT_MEIHUA 3
-#define SUIT_NONE 4
+#define SUIT_HONGTAO 1
+#define SUIT_FANGKUAI 2
+#define SUIT_HEITAO 4
+#define SUIT_MEIHUA 8
+#define SUIT_NONE 16
 
 #define COLOR_RED 0
 #define COLOR_BLACK 1
@@ -13,6 +13,7 @@
 
 
 #include "card/ccardtype.h"
+class CImage;
 
 class CCard
 {
@@ -23,7 +24,9 @@ public:
     static CCard* find(quint8);
     quint8 id;
     quint8 suit;
+    CImage *suitIcon();
     QString numberString();
+    QString description();
     quint8 number;
     bool temp;
     CCardType* type;

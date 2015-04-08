@@ -25,3 +25,9 @@ QList<CPlayer*> CCardLeBuSiShu::availableTargets(CPlayer *player, CCard *card)
     }
     return list;
 }
+
+void CCardLeBuSiShu::useCard(CPlayer *player, CCard *card, QList<CPlayer *> &list)
+{
+    list[0]->panDingQuAdd(card);
+    emit player->game->newData();
+}

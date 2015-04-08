@@ -26,3 +26,8 @@ QList<CPlayer*> CCardTieSuoLianHuan::availableTargets(CPlayer *player, CCard *ca
     }
     return list;
 }
+
+void CCardTieSuoLianHuan::useCard(CPlayer *, CCard *, QList<CPlayer *> &)
+{
+
+}

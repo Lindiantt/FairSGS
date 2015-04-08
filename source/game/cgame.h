@@ -20,11 +20,13 @@ public:
     virtual void s3needAllGeneralAndCards()=0;//通知所有人选将并派发初始卡牌
     virtual void s4skillSetup();//所有技能的GETEVENT调用
     void s5gameStart();//执行游戏开始时注册的事件，如七星和化身等
-    virtual void needCard(int,QSet<quint8>)=0;//需要从牌堆取牌
+    virtual void needCard(int,const QList<CPlayer*> &)=0;//需要从牌堆取牌
     void regGameStart(CPlayerSkill*);//注册“游戏开始”事件
-    virtual void needWuXieKeJi()=0;//需要无懈可击
+    virtual void needWuXieKeJi();//需要无懈可击
     virtual void startNextRound()=0;
     CPlayer* nextAlivePlayer(int);
+
+    bool wuxiePlayed,wuxieAvailable;
 
     QList<CCard*> deck,deadwood;
     QVector<CCard*> drawnCards;

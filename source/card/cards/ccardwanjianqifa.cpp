@@ -23,3 +23,8 @@ CCardWanJianQiFa::CCardWanJianQiFa()
 {
     maxTargets=99;
 }
+
+void CCardWanJianQiFa::useCard(CPlayer *, CCard *, QList<CPlayer *> &)
+{
+
+}

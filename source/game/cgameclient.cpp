@@ -17,6 +17,8 @@ extern MainWindow *w;
 #include "ui/widget/widgetroomplayer.h"
 #include "ui_widgetgameplayer.h"
 #include "general/cskill.h"
+#include "card/ccard.h"
+#include "game/cevent.h"
 
 #define COMPARE(a) if(a){w->client->end2("与服务器断开连接");return;}
 #define PLAYER ((CPlayerClient*)player)
@@ -31,6 +33,7 @@ CGameClient::CGameClient(WidgetGame *game)
     twoStage=false;
     twoStageLock=0;
     currentCard=nullptr;
+    //connect(this,this->newData,this,this->test);
 }
 
 CGameClient::~CGameClient()
@@ -184,36 +187,22 @@ void CGameClient::s3needAllGeneralAndCards()
     });
 }
 
-void CGameClient::s4skillSetup()
+void CGameClient::needCard(int n, const QList<CPlayer *> &ntk)
 {
-    CGame::s4skillSetup();
-    foreach (auto player, players) {
-        if(player->kingdom==KINGDOM_SHEN)
-        {
-            player->needSelect("选择势力",SELECTTYPE_KINGDOM);
-            auto f=std::bind([&](CPlayer* player){
-                player->setKingdom(selection);
-                widgetGame->hideTip();
-                emit newData();
-            },player);
-            addFunc(f);
-        }
-    }
-    addFunc(std::bind(s5gameStart,this));
-    emit newData();
-}
-
-void CGameClient::needCard(int n, QSet<quint8> ntk)
-{
-    if(ntk.contains(me->position))
+    if(ntk.contains(me))
     {
         auto f=std::bind([&](int n){
             QByteArray ba=serverData.takeFirst();
-            COMPARE(ba.length()!=n+1||ba[0]!=GAME_NEEDCARD);
+            COMPARE(ba[0]!=GAME_OPERATIONRESULT);
+            COperation *op=COperation::newOperation(this,ba);
+            COMPARE(!op||op->type!=OPERATION_NEEDCARD||op->parameter.size()!=n);
             drawnCards.resize(n);
+            CCard *card;
             for(int i=0;i<n;i++)
             {
-                drawnCards[i]=CCard::find(ba[i+1]);
+                card=CCard::find(op->parameter[i].toUInt());
+                COMPARE(!card);
+                drawnCards[i]=card;
             }
             emit newData();
         },n);
@@ -228,7 +217,69 @@ void CGameClient::needCard(int n, QSet<quint8> ntk)
 
 void CGameClient::needWuXieKeJi()
 {
-
+    CGame::needWuXieKeJi();
+    CEvent *ev=new CEvent(this);
+    if(me->hasWuXieKeJi())
+    {
+        ev->addFunc([&](){
+            QByteArray ba=serverData.takeFirst();
+            opWuXie=COperation::serverRequest(ba);
+            COMPARE(!opWuXie||opWuXie->type!=OPERATION_WUXIEKEJI);
+            CPlayer* player;
+            foreach (player, players) {
+                PLAYER->startTimeCount(w->client->wuXieTimeout,false);
+            }
+            QList<quint8> type2;
+            type2.append(CARD_WUXIEKEJI);
+            me->opSelect=opWuXie;
+            w->mwCLient->ui->widgetBottom->setSelectMode(0xff,0,type2,1,CARDMODE_HANDS);
+        });
+    }
+    else
+        opWuXie=nullptr;
+    ev->addFunc([&](){
+        CEvent *ev2=new CEvent(this);
+        w->mwCLient->ui->widgetBottom->endSelect();
+        if(opWuXie) opWuXie->deleteLater();
+        CPlayer *player;
+        foreach (player, players) {
+            PLAYER->stopTimeCount();
+        }
+        QByteArray ba=serverData.takeFirst();
+        COperation *op=COperation::newOperation(this,ba);
+        bool b=false;
+        foreach (auto pair, op->reply) {
+            QList<QVariant> &list=pair.second;
+            if(!list.isEmpty()&&list[0].toInt()!=-1)
+            {
+                int n=list[0].toInt();
+                if(n==10000)
+                {
+                    //使用技能
+                    emit newData();
+                    return;
+                }
+                b=true;
+                CCard* card=CCard::find(list[0].toInt());
+                COMPARE(!card);
+                quint8 pos=pair.first;
+                COMPARE(pos>=w->client->numberOfPlayer);
+                players[pos]->removeHand(card);
+                QList<CCard*> cards;
+                cards.append(card);
+                players[pos]->phaseCallback(PHASE_LOSECARD,&cards,(void*)LOSECARDREASON_PLAY);
+                break;
+            }
+        }
+        if(b)
+        {
+            wuxiePlayed=true;
+            wuxieAvailable=!wuxieAvailable;
+            auto f=std::bind(needWuXieKeJi,this);
+            ev2->addFunc(f);
+        }
+        emit newData();
+    });
 }
 
 void CGameClient::startNextRound()

@@ -142,7 +142,9 @@ void workerLoadSource::init()
     for(int i=0;i<6;i++)
     {
         blood[i]=new CImage("image/system/magatamas/"+QString::number(i)+".png");
+        phase[i]=new CImage("image/system/phase/"+QString::number(i)+".png");
     }
+    phaseStart=new CImage("image/system/phase/roundstart.png");
     for(int i=0;i<5;i++)
     {
         bloodBack[i]=new CImage("image/system/magatamas/bg"+QString::number(i+1)+".png");

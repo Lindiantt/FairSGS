@@ -23,3 +23,8 @@ CCardWuGuFengDeng::CCardWuGuFengDeng()
 {
     maxTargets=99;
 }
+
+void CCardWuGuFengDeng::useCard(CPlayer *, CCard *, QList<CPlayer *> &)
+{
+
+}

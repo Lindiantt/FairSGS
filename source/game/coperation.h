@@ -16,6 +16,7 @@ public:
     bool fromNotice(QByteArray &);
     CGame *game;
     bool finished;
+    bool onlyOne;
     uint id;
     quint8 type;
     QList<QVariant> parameter;
@@ -28,7 +29,7 @@ public:
     void needReply(const QList<quint8> );
     void replied(quint8,const QList<QVariant> );
     void deliver();
-    void selectiveDeliver(QList<CPlayer*> &playersSeen);
+    void selectiveDeliver(const QList<CPlayer*> &playersSeen);
     void checkReply();
     void send();
 

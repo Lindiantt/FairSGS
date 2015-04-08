@@ -14,7 +14,7 @@ class DialogSelect : public QDialog
 public:
     explicit DialogSelect(QWidget *parent = 0);
     ~DialogSelect();
-    void init(const QString &,int selectionType,const QStringList option);
+    void init(const QString &,const QStringList option);
     bool selected;
 signals:
     void select(int);

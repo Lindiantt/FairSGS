@@ -26,7 +26,7 @@ public:
     pCImage generalCards[MAX_GENERAL],generalAvatars[MAX_GENERAL],shenCards[MAX_SHEN],shenAvatars[MAX_SHEN],bgRoom,
     bgGamePlayer,bgBottomLeft,bgBottomRight,bloodBack[5],blood[6],kingdomFrame[5],kingdomIcon[5],roleCorner[5],iconWuQi[3],
     iconFangJu,iconMa,suitsSmall[4],pointRed[13],pointBlack[13],cards[44],bgBottomEquip,handCardNumber,cardBack,
-    frameMeSelected,framePlayerSelected,framePlayerPlaying,framePlayerResponding,framePlayerSOS;
+    frameMeSelected,framePlayerSelected,framePlayerPlaying,framePlayerResponding,framePlayerSOS,phase[6],phaseStart;
     pCIcon buttonWuXie;
 public slots:
     void handleNew(int workType,void* pointer,CCheckPointer* lab);

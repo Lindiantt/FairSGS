@@ -34,7 +34,8 @@ void CServerList::replyFinished()
     int i,j,k;
     bool b;
     networkReply->read(buf,2);
-    port=qFromLittleEndian(*(quint16*)buf);
+    memcpy(&port,buf,2);
+    port=qFromLittleEndian(port);
     if(port!=VERSION_SERVERLIST)
     {
         w->mwServerList->statusBar()->showMessage("列表服务器返回的数据与本程序不兼容，如果您使用的是最新的版本，那么可能是服务器出现了故障。");
@@ -59,8 +60,10 @@ void CServerList::replyFinished()
         while(networkReply->bytesAvailable()>=10)
         {
             networkReply->read(buf,10);
-            addr=qFromLittleEndian(*(quint32*)buf);
-            port=qFromLittleEndian(*(quint16*)(buf+4));
+            memcpy(&addr,buf,4);
+            addr=qFromLittleEndian(addr);
+            memcpy(&port,buf+4,2);
+            port=qFromLittleEndian(port);
             addAddress(j+i,addr,port);
             i++;
             if(i==20)
@@ -78,8 +81,10 @@ void CServerList::replyFinished()
             while(networkReply->bytesAvailable()>=10)
             {
                 networkReply->read(buf,10);
-                addr=qFromLittleEndian(*(quint32*)buf);
-                port=qFromLittleEndian(*(quint16*)(buf+4));
+                memcpy(&addr,buf,4);
+                addr=qFromLittleEndian(addr);
+                memcpy(&port,buf+4,2);
+                port=qFromLittleEndian(port);
                 leftServers.append(QPair<quint32,quint16>(addr,port));
             }
             if(!leftServers.size())

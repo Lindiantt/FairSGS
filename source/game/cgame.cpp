@@ -15,18 +15,36 @@ CGame::CGame()
 
 CGame::~CGame()
 {
-
+    while(currentEvent)
+    {
+        delete currentEvent;
+    }
 }
 
 void CGame::s4skillSetup()
 {
-    foreach (CPlayer* player, players) {
+    CPlayer* player;
+    foreach (player, players) {
         foreach (CPlayerSkill* skill,player->skills) {
             skill->getEvent();
         }
     }
     round=0;
     nextPosition=0;
+    foreach (player, players) {
+        if(player->kingdom==KINGDOM_SHEN)
+        {
+            auto f=std::bind(player->needSelectKingdom,player);
+            addFunc(f);
+            auto f2=std::bind([&](CPlayer* player){
+                player->setKingdom(player->selectionList[0].toUInt());
+                emit newData();
+            },player);
+            addFunc(f2);
+        }
+    }
+    addFunc(std::bind(s5gameStart,this));
+    emit newData();
 }
 
 void CGame::s5gameStart()
@@ -249,4 +267,9 @@ quint8 CGame::countPositionDistance(quint8 pos1, quint8 pos2)
             skip++;
     }
     return dis2;
+}
+
+void CGame::needWuXieKeJi()
+{
+    wuxiePlayed=false;
 }

@@ -86,7 +86,9 @@ SOURCES += main.cpp\
     card/cards/ccardtiesuolianhuan.cpp \
     card/cards/ccardshandian.cpp \
     card/cards/ccardlebusishu.cpp \
-    card/cards/ccardbingliangcunduan.cpp
+    card/cards/ccardbingliangcunduan.cpp \
+    game/doondelete.cpp \
+    ui/dialog/dialogplayercard.cpp
 
 HEADERS  += mainwindow.h \
     general/cskill.h \
@@ -140,7 +142,9 @@ HEADERS  += mainwindow.h \
     ui/widget/widgetzhuangbeismall.h \
     ui/widget/widgetcard.h \
     thread/cicon.h \
-    thread/ccheckpointer.h
+    thread/ccheckpointer.h \
+    game/doondelete.h \
+    ui/dialog/dialogplayercard.h
 
 FORMS    += mainwindow.ui \
     ui/mainwindow/mainwindowserver.ui \
@@ -159,4 +163,5 @@ FORMS    += mainwindow.ui \
     ui/dialog/dialogchoosegeneral.ui \
     ui/widget/widgettimecount.ui \
     ui/dialog/dialogselect.ui \
-    ui/widget/widgetcard.ui
+    ui/widget/widgetcard.ui \
+    ui/dialog/dialogplayercard.ui

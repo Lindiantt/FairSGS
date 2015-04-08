@@ -2,6 +2,7 @@
 #include "game/cplayer.h"
 #include "game/cgame.h"
 #include "general/cskill.h"
+#include "card/ccard.h"
 
 CCardBingLiangCunDuan::CCardBingLiangCunDuan()
 {
@@ -26,4 +27,10 @@ QList<CPlayer*> CCardBingLiangCunDuan::availableTargets(CPlayer *player, CCard *
         }
     }
     return list;
+}
+
+void CCardBingLiangCunDuan::useCard(CPlayer *player, CCard *card, QList<CPlayer *> &list)
+{
+    list[0]->panDingQuAdd(card);
+    emit player->game->newData();
 }

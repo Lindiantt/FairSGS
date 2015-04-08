@@ -8,6 +8,10 @@
 extern MainWindow *w;
 
 #include "coperation.h"
+#include "card/ccard.h"
+#include "game/doondelete.h"
+#include "general/cskill.h"
+#include "game/cevent.h"
 
 #define PLAYER ((CPlayerServer*)player)
 
@@ -87,7 +91,7 @@ void CGameServer::s1needRole()
     }
 #ifdef QT_DEBUG
     QList<CGeneral*> list;
-    list.append(w->generalShen[3]);
+    list.append(w->generalShen[0]);
     pickZG.append(list);
 #endif
     if(server->choicesZG)
@@ -233,41 +237,11 @@ void CGameServer::s3needAllGeneralAndCards()
     foreach (auto player, players) {
         drawCard(4);
 #ifdef QT_DEBUG
-        //drawnCards[0]=w->cardJunzheng[11];
+        //drawnCards[0]=w->cardBiao[16];
 #endif
         PLAYER->deliverCard(getDrawnCards());
     }
     this->s4skillSetup();
-}
-
-void CGameServer::s4skillSetup()
-{
-    CGame::s4skillSetup();
-
-    foreach (auto player, players) {
-        if(PLAYER->kingdom==KINGDOM_SHEN)
-        {
-            auto f=std::bind([&](CPlayer* player){
-                currentOperation=newOperation(OPERATION_SELECT);
-                PLAYER->needSelect(currentOperation);
-                currentOperation->send();
-                if(currentOperation->finished)
-                    emit newData();
-                else
-                    connect(currentOperation,currentOperation->signalFinished,this,this->doFuncs);
-            },player);
-            addFunc(f);
-            auto f2=std::bind([&](CPlayer* player){
-                auto list=currentOperation->reply[PLAYER->position].second;
-                if(list.isEmpty()) return;
-                PLAYER->setKingdom(list[0].toInt());
-                emit newData();
-            },player);
-            addFunc(f2);
-        }
-    }
-    addFunc(std::bind(s5gameStart,this));
-    emit newData();
 }
 
 void CGameServer::handleGeneralChosen()
@@ -340,26 +314,94 @@ void CGameServer::drawCard(int n)
     drawnCards=drawnCards.fromList(cards);
 }
 
-void CGameServer::needCard(int n, QSet<quint8> ntk)
+void CGameServer::needCard(int n, const QList<CPlayer *> &ntk)
 {
     drawCard(n);
-    QByteArray sendbuf;
-    sendbuf.resize(3+n);
-    sendbuf[2]=GAME_NEEDCARD;
+    COperation *op=newOperation(OPERATION_NEEDCARD);
     for(int i=0;i<n;i++)
     {
-        sendbuf[3+i]=drawnCards[i]->id;
+        op->parameter.append(drawnCards[i]->id);
     }
-    foreach (quint8 id, ntk) {
-        auto player=players[id];
-        PLAYER->networkSend(sendbuf);
-    }
+    op->selectiveDeliver(ntk);
     emit newData();
 }
 
 void CGameServer::needWuXieKeJi()
 {
-
+    CGame::needWuXieKeJi();
+    currentOperation=newOperation(OPERATION_WUXIEKEJI);
+    currentOperation->onlyOne=true;
+    CPlayer *player;
+    foreach (player, players) {
+        if(PLAYER->hasWuXieKeJi())
+        {
+            currentOperation->needReply(player->position);
+            auto f=std::bind([&](quint8 pos,COperation *op){
+                QList<QVariant> list;
+                list.append((int)-1);
+                op->replied(pos,list);
+            },player->position,currentOperation);
+            PLAYER->setDefaultAction(false,server->wuXieTimeout,f);
+        }
+    }
+    if(!currentOperation->reply.isEmpty())
+    {
+        smartInsertFunc([&](){
+            CEvent *ev=new CEvent(this);
+            for(auto it=currentOperation->reply.begin();it!=currentOperation->reply.end();it++)
+            {
+                QList<QVariant> &list=it.value().second;
+                if(!list.isEmpty())
+                {
+                    if(list.size()!=1)
+                    {
+                        list.clear();
+                        continue;
+                    }
+                    int i=list[0].toInt();
+                    if(i==-1) continue;
+                    if(i==10000)
+                    {
+                        //使用技能
+                        emit newData();
+                        return;
+                    }
+                    CCard* card=CCard::find(i);
+                    if(!card||!players[it.key()]->hands.contains(card)||card->type->type2!=CARD_WUXIEKEJI)
+                    {
+                        list.clear();
+                        list.append((int)-1);
+                        continue;
+                    }
+                    int pos=it.key();
+                    QList<CCard*> cards;
+                    cards.append(card);
+                    players[pos]->removeHand(card);
+                    players[pos]->phaseCallback(PHASE_LOSECARD,&cards,(void*)LOSECARDREASON_PLAY);
+                    wuxiePlayed=true;
+                    break;
+                }
+            }
+            currentOperation->deliver();
+            if(wuxiePlayed)
+            {
+                wuxieAvailable=!wuxieAvailable;
+                auto f=std::bind(needWuXieKeJi,this);
+                ev->addFunc(f);
+            }
+            emit newData();
+        });
+        currentOperation->send();
+        if(currentOperation->finished)
+            emit newData();
+        else
+            connect(currentOperation,currentOperation->signalFinished,this,this->doFuncs);
+    }
+    else
+    {
+        currentOperation->deliver();
+        emit newData();
+    }
 }
 
 void CGameServer::startNextRound()

@@ -73,6 +73,8 @@
 
 class CPlayer;
 class CCard;
+class CEvent;
+class CGame;
 
 class CCardType
 {
@@ -80,16 +82,19 @@ public:
     CCardType();
     ~CCardType();
     static void createType(CCardType** &);
-    virtual void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
+    virtual void useCard(CPlayer*,CCard*,QList<CPlayer*> &);//出牌阶段主动使用卡牌
     virtual bool canUse(CPlayer*,CCard*);
     virtual bool canPlay(CPlayer*,CCard*);
     virtual QList<CPlayer*> availableTargets(CPlayer*,CCard*);
     virtual bool cardUseCheck(CPlayer*,CCard*,QList<CPlayer*> &);
+    void wuxiePlay(CEvent*);
     quint16 type1;
     quint8 type2;
     QString name;
+    QString description;
     int minTargets,maxTargets;
     bool canSelectTarget;
+protected:
 };
 
 class CCardSha: public CCardType
@@ -100,34 +105,41 @@ public:
     void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
     int attribute;
+protected:
+    void useCardCallback(CPlayer* player,CPlayer* target,CCard* card,int point);
 };
 
 class CCardLeiSha:public CCardSha
 {
-    //void useCard(CPlayer*);
+public:
+    CCardLeiSha();
 };
 
 class CCardHuoSha:public CCardSha
 {
-    //void useCard(CPlayer*);
+public:
+    CCardHuoSha();
 };
 
 class CCardJiu: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardTao: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardGuoHeCaiQiao: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardGuoHeCaiQiao();
 };
 
@@ -135,6 +147,7 @@ class CCardShunShouQianYang: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardShunShouQianYang();
 };
 
@@ -142,6 +155,7 @@ class CCardWuZhongShengYou: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     //CCardWuZhongShengYou();
 };
 
@@ -150,6 +164,7 @@ class CCardJieDaoShaRen: public CCardType
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
     bool cardUseCheck(CPlayer*,CCard*,QList<CPlayer*> &);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardJieDaoShaRen();
 };
 
@@ -158,6 +173,7 @@ class CCardWuGuFengDeng: public CCardType
 public:
     CCardWuGuFengDeng();
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardTaoYuanJieYi: public CCardType
@@ -165,12 +181,14 @@ class CCardTaoYuanJieYi: public CCardType
 public:
     CCardTaoYuanJieYi();
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardHuoGong: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardHuoGong();
 };
 
@@ -179,6 +197,7 @@ class CCardNanManRuQin: public CCardType
 public:
     CCardNanManRuQin();
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardWanJianQiFa: public CCardType
@@ -186,19 +205,24 @@ class CCardWanJianQiFa: public CCardType
 public:
     CCardWanJianQiFa();
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardJueDou: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardJueDou();
+protected:
+    void useCardCallback(CPlayer* player,CCard* card,CPlayer* target,bool isTargetTurn);
 };
 
 class CCardTieSuoLianHuan: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardTieSuoLianHuan();
 };
 
@@ -206,12 +230,14 @@ class CCardShanDian: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
 };
 
 class CCardLeBuSiShu: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardLeBuSiShu();
 };
 
@@ -219,6 +245,7 @@ class CCardBingLiangCunDuan: public CCardType
 {
 public:
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     CCardBingLiangCunDuan();
 };
 
@@ -231,6 +258,7 @@ public:
     virtual void moveEvent(CPlayer *,CPlayer *);
     virtual void callback(CPlayer *,int phase);
     QList<CPlayer*> availableTargets(CPlayer*,CCard*);
+    void useCard(CPlayer*,CCard*,QList<CPlayer*> &);
     //void useCard(CPlayer*);
     //bool canUse(CPlayer*);
 };

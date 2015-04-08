@@ -14,7 +14,6 @@ extern MainWindow *w;
 #include "ui/dialog/dialogchooseroom.h"
 #include "ui/mainwindow/mainwindowserver.h"
 #include "game/cgameclient.h"
-
 #define COMPARE(a,b) if((a)!=(b)){end2("与服务器断开连接。");return false;}
 
 CClient::CClient(QString ip,quint16 port,quint8 authmode,QByteArray password,QString user,QObject *parent) : QObject(parent)
@@ -211,8 +210,7 @@ void CClient::end2(const QString &err)
 {
     if(!this||alreadyEnd) return;
     alreadyEnd=true;
-    w->mwCLient->hide();
-    if(w->mwCLient->dialogChooseRoom) w->mwCLient->dialogChooseRoom->hide();
+    w->mwCLient->hideAll();
     end();
     QWidget *wgt;
     if(w->server)

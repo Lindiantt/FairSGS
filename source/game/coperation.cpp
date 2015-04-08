@@ -2,6 +2,7 @@
 #include "network/define.h"
 #include "cgameserver.h"
 #include "cplayerserver.h"
+#include "card/ccard.h"
 
 #define PLAYER ((CPlayerServer*)player)
 
@@ -9,6 +10,7 @@ COperation::COperation(CGame *game) : QObject(game)
 {
     this->game=game;
     finished=false;
+    onlyOne=false;
 }
 
 COperation::~COperation()
@@ -34,17 +36,12 @@ void COperation::deliver()
     }
 }
 
-void COperation::selectiveDeliver(QList<CPlayer *> &playersSeen)
+void COperation::selectiveDeliver(const QList<CPlayer *> &playersSeen)
 {
     finished=true;
-    CGameServer *game=(CGameServer*)this->game;
     QByteArray ba=noticeBuf();
-    QByteArray ba3=noticeBuf3rd();
-    foreach (auto player, game->players) {
-        if(playersSeen.contains(player))
-            PLAYER->networkSend(ba);
-        else
-            PLAYER->networkSend(ba3);
+    foreach (auto player, playersSeen) {
+        PLAYER->networkSend(ba);
     }
 }
 
@@ -116,8 +113,9 @@ void COperation::checkReply()
     foreach (auto it, reply) {
         if(!it.first) return;
     }
+    finished=true;
     emit signalFinished();
-    deliver();
+    //deliver();
 }
 
 void COperation::needReply(quint8 c)
@@ -135,28 +133,29 @@ void COperation::needReply(const QList<quint8> list)
 
 void COperation::replied(quint8 c, const QList<QVariant> list)
 {
+    if(finished) return;
     auto it=reply.find(c);
     if(it!=reply.end())
     {
-        reply[c].first=true;
-        reply[c].second=list;
+        if(it.value().first) return;
+        it.value().first=true;
+        it.value().second=list;
         emit signalReplied(c);
-        checkReply();
+        if(onlyOne&&list[0].toInt()!=-1)
+        {
+            finished=true;
+            emit signalFinished();
+        }
+        else
+            checkReply();
     }
 }
 
 COperation* COperation::newOperation(CGame *game, QByteArray &ba)
 {
     COperation *op=new COperation(game);
-    if(op->fromNotice(ba)&&!op->reply.isEmpty())
+    if(op->fromNotice(ba))
     {
-        foreach (auto pair, op->reply) {
-            if(pair.second.isEmpty())
-            {
-                op->deleteLater();
-                return nullptr;
-            }
-        }
         game->operations.insert(op->id,op);
         return op;
     }

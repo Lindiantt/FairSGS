@@ -42,6 +42,9 @@ WidgetGamePlayer::WidgetGamePlayer(QWidget *parent) :
     ui->widgetJiaYiMaSmall->setVisible(false);
     ui->widgetWuQi->setVisible(false);
     widgetTimeCount=new WidgetTimeCount(this,w->mwCLient->ui->widgetGame);
+    labelPhase=new QLabel(w->mwCLient->ui->widgetGame);
+    labelPhase->resize(140,12);
+    labelPhase->setScaledContents(true);
     labelFrame=new QLabel(w->mwCLient->ui->widgetGame);
     labelFrame->resize(187,211);
     labelFrame->lower();
@@ -55,6 +58,7 @@ WidgetGamePlayer::~WidgetGamePlayer()
     delete ui;
     widgetTimeCount->deleteLater();
     labelFrame->deleteLater();
+    labelPhase->deleteLater();
 }
 
 void WidgetGamePlayer::moveWidgets()
@@ -62,6 +66,7 @@ void WidgetGamePlayer::moveWidgets()
     QPoint point=this->mapTo(w->mwCLient->ui->widgetGame,QPoint(0,181));
     widgetTimeCount->move(point);
     labelFrame->move(this->mapTo(w->mwCLient->ui->widgetGame,QPoint(-15,-15)));
+    labelPhase->move(this->mapTo(w->mwCLient->ui->widgetGame,QPoint(25,176)));
 }
 
 void WidgetGamePlayer::paintEvent(QPaintEvent *ev)
@@ -251,6 +256,8 @@ void WidgetGamePlayer::setHp(signed char hp)
         {
             img=w->wLoadSource->blood[hp];
         }
+        else
+            return;
         for(;i<player->maxHP;i++)
         {
             w->imageLoad(img,labelBloods[i],labelBloods[i]);

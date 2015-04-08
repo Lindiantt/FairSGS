@@ -1,6 +1,9 @@
 ﻿#include "ccardtype.h"
 #include "game/cplayer.h"
 #include "general/cskill.h"
+#include "card/ccard.h"
+#include "game/cevent.h"
+#include "game/cgame.h"
 
 CCardType::CCardType()
 {
@@ -31,9 +34,23 @@ bool CCardType::canPlay(CPlayer *player, CCard *card)
     return b;
 }
 
-void CCardType::useCard(CPlayer *, CCard* , QList<CPlayer *> &)
+void CCardType::useCard(CPlayer *player, CCard* card, QList<CPlayer *> &list)
 {
 
+}
+
+void CCardType::wuxiePlay(CEvent *ev)
+{
+    CEvent *e=new CEvent(ev->game);
+    ev->game->wuxieAvailable=false;
+    e->addFunc(std::bind(ev->game->needWuXieKeJi,ev->game));
+    auto f=std::bind([&](CEvent *ev){
+        if(ev->game->wuxieAvailable)
+            ev->funcs.clear();
+        emit ev->game->newData();
+    },ev);
+    ev->addFunc(f);
+    emit ev->game->newData();
 }
 
 /*int CCardType::getMaxTargets(CPlayer *player, CCard *card)

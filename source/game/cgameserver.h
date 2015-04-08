@@ -19,9 +19,8 @@ public:
     void s1needRole();
     void s2needChooseGeneral();
     void s3needAllGeneralAndCards();
-    void s4skillSetup();
     void drawCard(int);
-    void needCard(int,QSet<quint8>);
+    void needCard(int,const QList<CPlayer*> &);
     void needWuXieKeJi();
     void startNextRound();
     CServer* server;

@@ -15,7 +15,8 @@ class CPlayer;
 
 #define UIMODE_USECARD 1
 #define UIMODE_USESKILL 2
-
+#define UIMODE_PLAYCARD 3
+#define UIMODE_SHOWCARD 4
 
 class WidgetBottom : public QWidget
 {
@@ -38,6 +39,10 @@ public:
     void setSelectable(bool);
     void setNoSelect();
     void handsAllOff();
+    void setSelectMode(quint8 suit,quint16 type, const QList<quint8> type2,int number,int cardMode);
+    void removeHand(CCard*);
+    void addHand(CCard*);
+    QList<QVariant> playCardsList();
     QList<WidgetCard*> hands;
     int maxSelection,selectedCards;
     bool handSelectable,zhuangBeiSelectable;

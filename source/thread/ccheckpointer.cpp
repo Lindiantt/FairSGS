@@ -20,7 +20,7 @@ void CCheckPointer::deleteObject(void *ob)
     mutex.lock();
     parList.remove(ob);
     mutex.unlock();
-    QObject *o=(QObject*)ob;
+    QWidget *o=(QWidget*)ob;
     o->deleteLater();
 }
 

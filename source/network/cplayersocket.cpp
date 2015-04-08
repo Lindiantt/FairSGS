@@ -295,7 +295,7 @@ bool CPlayerSocket::rhConnected()
     timer.stop();
     bool reconnect=false;
 #ifdef QT_NO_DEBUG
-    if(server->auth<2)//检测是否断线重连
+    /*if(server->auth<2)//检测是否断线重连
     {
         foreach (CPlayerSocket *handle,server->sockets) {
             if(handle!=this&&handle->nick==this->nick&&handle->hostAddress==this->hostAddress)
@@ -318,7 +318,7 @@ bool CPlayerSocket::rhConnected()
                 break;
             }
         }
-    }
+    }*/
 #endif
     if(reconnect)
     {

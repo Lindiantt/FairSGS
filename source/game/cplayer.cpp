@@ -5,6 +5,7 @@
 #include "cgame.h"
 #include "cinjured.h"
 #include "general/cgeneral.h"
+#include "card/ccard.h"
 
 CPlayer::CPlayer()
 {
@@ -40,10 +41,11 @@ void CPlayer::nextPhase()
     }while(currentPhase<=PHASE_AFTEREND&&abandonPhase[currentPhase]);
     if(currentPhase>PHASE_AFTEREND)
     {
-        game->roundEnd();
+        //game->roundEnd();
         return;
     }
-    new CEvent(game);
+    new CEvent(game,EVENT_PHASE);
+    phaseCallback(currentPhase);
     switch (currentPhase) {
     case PHASE_JUDGEPHASE:
         phaseJudge();
@@ -60,7 +62,6 @@ void CPlayer::nextPhase()
     default:
         break;
     }
-    phaseCallback(currentPhase);
     game->addFunc(std::bind(nextPhase,this));
     emit game->newData();
 }
@@ -84,13 +85,12 @@ void CPlayer::phaseDraw()
     game->smartAddFunc([&](){
         if(drawCount)
         {
-            QSet<quint8> pset;
-            pset.insert(this->position);
-            auto f=std::bind(game->needCard,game,drawCount,pset);
+            QList<CPlayer*> ntk;
+            ntk.append(this);
+            auto f=std::bind(game->needCard,game,drawCount,ntk);
             game->insertMultiFunc(f);
             game->insertMultiFunc([&](){
-                getCard(game->getDrawnCards());
-                emit game->newData();
+                getCard(game->getDrawnCards(),nullptr);
             });
             game->smartInsertOver();
         }
@@ -162,7 +162,7 @@ void CPlayer::phaseJudge()
                         do
                         {
                             nap=game->nextAlivePlayer(nap->position);
-                        }while(!nap->canBeTarget(card)&&nap!=this);//寻找下一个能成为闪电目标的人
+                        }while(!nap->canBeTarget(card,this)&&nap!=this);//寻找下一个能成为闪电目标的人
                         if(nap!=this)
                         {
                             panDingQuRemove(card);
@@ -186,7 +186,7 @@ void CPlayer::judge()
     CEvent *je=new CEvent(game);
     phaseCallback(PHASE_ABOUTTOJUDGE);
     je->addFunc(std::bind([&](CEvent *je){
-        auto f=std::bind(game->needCard,game,1,game->allPlayers());
+        auto f=std::bind(game->needCard,game,1,QList<CPlayer*>::fromVector(game->players));
         game->insertMultiFunc(f);
         game->insertMultiFunc([&](){
             auto list=game->getDrawnCards();
@@ -207,33 +207,40 @@ void CPlayer::phaseDiscard()
 
 }
 
-bool CPlayer::canBeTarget(CCard *)
-{
-    return true;
-}
-
 void CPlayer::injured(CInjured *inj)
 {
-    CEvent injuryEvent(game);
-    injuryEvent.funcDelete=[=](){inj->deleteLater();};
+    CEvent *ev=new CEvent(game);
     phaseCallback(PHASE_BEFOREINJURED,inj);
-    this->HP-=inj->point;
-    if(this->HP<=0)
-    {
-        goingToDie();
-    }
+    auto f=std::bind([&](CInjured *inj){
+        char hp=this->HP-inj->point;
+        setHP(hp);
+        if(hp<=0)
+        {
+            goingToDie();
+        }
+        emit game->newData();
+    },inj);
+    ev->addFunc(f);
     phaseCallback(PHASE_INJURED,inj);
-    if(this->isTieSuoLianHuan&&inj->attribute!=ATTRIBUTE_NONE&&inj->fromTieSuo==false)
-    {
-        this->isTieSuoLianHuan=false;
-        foreach (CPlayer* player, game->players) {
-            if(player!=this&&player->isTieSuoLianHuan)
-            {
-                CInjured *tsinj=new CInjured(inj);
-                player->injured(tsinj);
+    auto f2=std::bind([&](CInjured *inj){
+        if(this->isTieSuoLianHuan&&inj->attribute!=ATTRIBUTE_NONE&&inj->fromTieSuo==false)
+        {
+            setTieSuoLianHuan(false);
+            CEvent *tsev=new CEvent(game);
+            foreach (CPlayer* player, game->players) {
+                if(player!=this&&player->isTieSuoLianHuan)
+                {
+                    CInjured *tsinj=new CInjured(inj);
+                    auto f=std::bind(player->injured,player,tsinj);
+                    tsev->addFunc(f);
+                }
             }
         }
-    }
+        inj->deleteLater();
+        emit game->newData();
+    },inj);
+    ev->addFunc(f2);
+    emit game->newData();
 }
 
 void CPlayer::loseHP(int point)
@@ -249,9 +256,11 @@ void CPlayer::loseHP(int point)
 
 void CPlayer::getCard(const QList<CCard *> &list, CPlayer *from)
 {
+    new CEvent(game);
     this->hands.append(list);
     QList<CCard*> l=list;
     phaseCallback(PHASE_GETCARD,&l,from);
+    emit game->newData();
 }
 
 void CPlayer::discardCard(QList<CCard *> &list, int reason)
@@ -301,9 +310,30 @@ void CPlayer::phaseCallback(int phase, void *extre, void *extre2, void *extre3, 
     }
 }
 
-void CPlayer::loseCard(QList<CCard *> &, int )
+void CPlayer::loseCard(CCard *card)
 {
+    for(int i=0;i<5;i++)
+    {
+        if(zhuangBei[i]==card)
+        {
+            setZhuangBei(i,nullptr);
+            return;
+        }
+    }
+    for(int i=0;i<3;i++)
+    {
+        if(panDingQu[i]==card)
+        {
+            panDingQuRemove(card);
+            return;
+        }
+    }
+    removeHand(card);
+}
 
+void CPlayer::setZhuangBei(int pos, CCard *card)
+{
+    zhuangBei[pos]=card;
 }
 
 void CPlayer::goingToDie()
@@ -351,11 +381,6 @@ void CPlayer::setHP(char hp)
     this->HP=hp;
 }
 
-int CPlayer::needSelect(const QString & , int , const QStringList )
-{
-    return 0;
-}
-
 void CPlayer::setRole(quint8 role)
 {
     this->role=role;
@@ -396,7 +421,7 @@ bool CPlayer::hasCard()
         return true;
 }
 
-void CPlayer::needPlay(quint16 , QList<quint8> *, int number, CPlayer *, CCard *, int  , int )
+void CPlayer::needPlay(quint8 , quint16 , const QList<quint8>, int number, CPlayer *, CCard *, int  , int , const QList<CPlayer *> )
 {
     cardPlayed=false;
     playCount=number;
@@ -414,5 +439,83 @@ void CPlayer::endPlayPhase()
 
 void CPlayer::useCard(CCard *card, QList<CPlayer *> &list)
 {
+    removeHand(card);
     card->type->useCard(this,card,list);
+}
+
+bool CPlayer::containsCard(CCard *card, int mode)
+{
+    if(mode&CARDMODE_HANDS)
+    {
+        CCard *c;
+        foreach (c, hands) {
+            if(c==card) return true;
+        }
+    }
+    if(mode&CARDMODE_ZHUANGBEI)
+    {
+        for(int i=0;i<5;i++)
+        {
+            if(zhuangBei[i]==card) return true;
+        }
+    }
+    return false;
+}
+
+void CPlayer::removeHand(CCard *card)
+{
+    hands.removeOne(card);
+}
+
+void CPlayer::setTieSuoLianHuan(bool b)
+{
+    isTieSuoLianHuan=b;
+}
+
+void CPlayer::needSelectKingdom()
+{
+    QList<QVariant> dr;
+    dr.append((int)0);
+    QList<QVariant> values;
+    values<<"魏"<<"蜀"<<"吴"<<"群";
+    needSelect("选择武将",SELECTTYPE_CUSTOM,values,dr,1,1);
+}
+
+bool CPlayer::canBeTarget(CCard *card, CPlayer *player)
+{
+    return card->type->availableTargets(player,card).contains(this);
+}
+
+QList<CCard*> CPlayer::cardList(bool hand, bool zhuangbei, bool panding)
+{
+    QList<CCard*> list;
+    if(hand&&!hands.isEmpty())
+        list.append(nullptr);
+    if(zhuangbei)
+    {
+        for(int i=0;i<5;i++)
+        {
+            if(zhuangBei[i]) list.append(zhuangBei[i]);
+        }
+    }
+    if(panding)
+    {
+        for(int i=0;i<3;i++)
+        {
+            if(panDingQu[i]) list.append(panDingQu[i]);
+        }
+    }
+    return list;
+}
+
+bool CPlayer::hasWuXieKeJi()
+{
+    CCard *card;
+    foreach (card, hands) {
+        if(card->type->type2==CARD_WUXIEKEJI)
+            return true;
+    }
+    bool b=false;
+    phaseCallback(PHASE_HASWUXIEKEJI,&b);
+    return b;
 }

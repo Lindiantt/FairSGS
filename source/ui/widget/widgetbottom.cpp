@@ -20,6 +20,7 @@ extern MainWindow *w;
 #include <QMouseEvent>
 #include "general/cskill.h"
 #include "network/cclient.h"
+#include "card/ccard.h"
 
 #define PLAYER ((CPlayerClient*)player)
 
@@ -224,7 +225,32 @@ void WidgetBottom::renewCardInfo()
     }
     setHands(hands.size());
     arrangeCards();
-    setCardSelectable();
+}
+
+void WidgetBottom::removeHand(CCard *card)
+{
+    WidgetCard* wcard;
+    foreach (wcard, hands) {
+        if(wcard->card==card)
+        {
+            hands.removeOne(wcard);
+            CCheckPointer::deleteObject(wcard);
+            arrangeCards();
+            setHands(hands.size());
+            return;
+        }
+    }
+}
+
+void WidgetBottom::addHand(CCard *card)
+{
+    WidgetCard *wcard=new WidgetCard(w->mwCLient->centralWidget());
+    connect(wcard,wcard->clicked,this,this->handleHandsClick);
+    wcard->setCard(card);
+    hands.append(wcard);
+    wcard->show();
+    setHands(hands.size());
+    arrangeCards();
 }
 
 void WidgetBottom::arrangeCards()
@@ -233,8 +259,12 @@ void WidgetBottom::arrangeCards()
     int space,start,end;
     start=164;
     end=width()-278;
-    if(hands.size()>1) space=(end-start)/(hands.size()-1);
-    if(space>93) space=93;
+    space=93;
+    if(hands.size()>1)
+    {
+        space=(end-start)/(hands.size()-1);
+        if(space>93) space=93;
+    }
     int y;
     QPoint point;
     for(int i=0;i<hands.size();i++)
@@ -327,6 +357,15 @@ void WidgetBottom::handleHandsClick()
             if(mode==UIMODE_USECARD) w->client->game->cardDirection(wcard->card);
         }
     }
+    if(mode==UIMODE_PLAYCARD)
+    {
+        if(maxSelection==selectedCards)
+        {
+            w->mwCLient->ui->widgetGame->ui->pushButtonOK->setEnabled(true);
+        }
+        else
+            w->mwCLient->ui->widgetGame->ui->pushButtonOK->setEnabled(false);
+    }
     arrangeCards();
 }
 
@@ -402,4 +441,54 @@ void WidgetBottom::mousePressEvent(QMouseEvent *ev)
     {
         w->client->game->targetClicked(me);
     }
+}
+
+void WidgetBottom::setSelectMode(quint8 suit, quint16 type, const QList<quint8> type2, int number, int cardMode)
+{
+    endSelect();
+    w->mwCLient->ui->widgetGame->ui->pushButtonEnd->setEnabled(false);
+    w->mwCLient->ui->widgetGame->ui->pushButtonCancel->setEnabled(true);
+    w->mwCLient->ui->widgetGame->ui->pushButtonOK->setEnabled(false);
+    w->client->game->mode=UIMODE_PLAYCARD;
+    WidgetCard *wcard;
+    if(cardMode&CARDMODE_HANDS)
+    {
+        handSelectable=true;
+        foreach (wcard, hands) {
+            if((suit&wcard->card->suit)&&((wcard->card->type->type1&type)||type2.contains(wcard->card->type->type2)))
+                wcard->setSelectable(true);
+            else
+                wcard->setSelectable(false);
+        }
+    }
+    else
+    {
+        handSelectable=false;
+        foreach (wcard, hands) {
+            wcard->setSelectable(false);
+        }
+    }
+    if(cardMode&CARDMODE_ZHUANGBEI)
+    {
+        zhuangBeiSelectable=true;
+    }
+    else
+    {
+        zhuangBeiSelectable=false;
+    }
+    maxSelection=number;
+    selectedCards=0;
+}
+
+QList<QVariant> WidgetBottom::playCardsList()
+{
+    QList<QVariant> list;
+    list.append(maxSelection);
+    WidgetCard *wcard;
+    foreach (wcard, hands) {
+        if(wcard->isOn)
+            list.append(wcard->card->id);
+    }
+    //todo:装备
+    return list;
 }

@@ -9,6 +9,7 @@ extern MainWindow *w;
 #include "network/cclient.h"
 #include <QCloseEvent>
 
+
 MainWindowClient::MainWindowClient(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindowClient)
@@ -16,6 +17,7 @@ MainWindowClient::MainWindowClient(QWidget *parent) :
     dialogChooseRoom=nullptr;
     dialogChooseGeneral=nullptr;
     dialogSelect=nullptr;
+    dialogPlayerCard=nullptr;
 
     ui->setupUi(this);
     ui->splitterMain->setStretchFactor(0,1);
@@ -75,4 +77,12 @@ void MainWindowClient::closeEvent(QCloseEvent *ev)
 {
     ev->ignore();
     closeClient(this);
+}
+
+void MainWindowClient::hideAll()
+{
+    this->hide();
+    if(dialogChooseGeneral) reinterpret_cast<QDialog*>(dialogChooseGeneral)->hide();
+    if(dialogChooseRoom) reinterpret_cast<QDialog*>(dialogChooseRoom)->hide();
+    if(dialogSelect) reinterpret_cast<QDialog*>(dialogSelect)->hide();
 }

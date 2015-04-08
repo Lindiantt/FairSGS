@@ -18,6 +18,7 @@ extern MainWindow *w;
 #include "thread/cicon.h"
 #include "thread/ccheckpointer.h"
 #include "game/coperation.h"
+#include "card/ccard.h"
 
 #define COMPARE(a) if(a){w->client->end2("与服务器断开连接。");return false;}
 #define PLAYER ((CPlayerClient*)player)
@@ -56,7 +57,7 @@ void WidgetGame::init()
         CCheckPointer::deleteObject(player);
     }
     players.resize(w->client->numberOfPlayer-1);
-    int box[3];
+    int box[3]={0};
     switch (players.size()) {
     case 1:
         box[0]=0;
@@ -141,6 +142,14 @@ bool WidgetGame::rhPlaying(QByteArray &ba)
 {
     switch (ba[0]) {
     case GAME_EXTRETIME:
+        COMPARE(ba.length()!=6);
+    {
+        quint8 c=ba[1];
+        COMPARE(c>=game->players.size());
+        uint u;
+        memcpy(&u,ba.data()+2,4);
+        game->players[c]->extreTime=qFromLittleEndian(u);
+    }
         break;
     case GAME_CARDINIT:
     case GAME_CHOOSEGENERAL:
@@ -148,7 +157,8 @@ bool WidgetGame::rhPlaying(QByteArray &ba)
     case GAME_INIT:
     case GAME_OPERATION:
     case GAME_OPERATIONRESULT:
-    case GAME_NEEDCARD:
+    //case GAME_NEEDCARD:
+    //case GAME_RANDOMHAND:
         game->serverData.append(ba);
         emit game->newData();
         break;
@@ -209,6 +219,22 @@ void WidgetGame::on_pushButtonCancel_clicked()
     {
         w->mwCLient->ui->widgetBottom->handsAllOff();
     }
+    else if(game->mode==UIMODE_PLAYCARD)
+    {
+        QList<QVariant> list;
+        list.append((int)0);
+        auto buf=game->me->opSelect->replyBuf(list);
+        w->client->send(buf);
+        w->mwCLient->ui->widgetBottom->endSelect();
+    }
+    else if(game->mode=UIMODE_SHOWCARD)
+    {
+        QList<QVariant> list;
+        list.append(game->me->hands[0]->id);
+        auto buf=game->me->opSelect->replyBuf(list);
+        w->client->send(buf);
+        w->mwCLient->ui->widgetBottom->endSelect();
+    }
 }
 
 void WidgetGame::on_pushButtonOK_clicked()
@@ -218,9 +244,27 @@ void WidgetGame::on_pushButtonOK_clicked()
         COperation op(game);
         op.type=OPERATION_USECARD;
         op.parameter.append(game->currentCard->id);
+        auto list=currentSelectedTargets();
+        CPlayer *player;
+        foreach (player, list) {
+            op.parameter.append(player->position);
+        }
         auto ba=op.requestBuf();
         w->client->send(ba);
     }
+    else if(game->mode==UIMODE_PLAYCARD)
+    {
+        auto list=w->mwCLient->ui->widgetBottom->playCardsList();
+        auto buf=game->me->opSelect->replyBuf(list);
+        w->client->send(buf);
+    }
+    else if(game->mode==UIMODE_SHOWCARD)
+    {
+        auto list=w->mwCLient->ui->widgetBottom->playCardsList();
+        auto buf=game->me->opSelect->replyBuf(list);
+        w->client->send(buf);
+    }
+    w->mwCLient->ui->widgetBottom->endSelect();
 }
 
 void WidgetGame::displayCard(CCard *card, CPlayer *from)

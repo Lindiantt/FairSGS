@@ -15,28 +15,15 @@ DialogSelect::~DialogSelect()
     delete ui;
 }
 
-void DialogSelect::init(const QString &question, int selectionType, const QStringList option)
+void DialogSelect::init(const QString &question, const QStringList option)
 {
     selected=false;
     qDeleteAll(buttons);
     ui->label->setText(question);
-    switch (selectionType) {
-    case SELECTTYPE_CUSTOM:
-        makeButtons(option.size());
-        for(int i=0;i<option.size();i++)
-        {
-            buttons[i]->setText(option[i]);
-        }
-        break;
-    case SELECTTYPE_KINGDOM:
-        makeButtons(4);
-        buttons[0]->setText("魏");
-        buttons[1]->setText("蜀");
-        buttons[2]->setText("吴");
-        buttons[3]->setText("群");
-        break;
-    default:
-        break;
+    makeButtons(option.size());
+    for(int i=0;i<option.size();i++)
+    {
+        buttons[i]->setText(option[i]);
     }
     calsize();
     this->show();

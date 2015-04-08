@@ -6,6 +6,11 @@
 #include "network/cserver.h"
 #include "coperation.h"
 #include "general/cskill.h"
+#include "card/ccard.h"
+#include "game/doondelete.h"
+#include "game/cevent.h"
+#include "mainwindow.h"
+extern MainWindow *w;
 
 #define COMPARE(a) if(a){socketHandle->socket->disconnectFromHost();return false;}
 #define GAME ((CGameServer*)game)
@@ -25,6 +30,7 @@ CPlayerServer::CPlayerServer(CGameServer *game, CPlayerSocket *socket)
     bytesRemain=0;
     connect(&timerDA,timerDA.timeout,this,this->handleDefaultTimeout);
     timerDA.setSingleShot(true);
+    canUseCard=false;
 }
 
 CPlayerServer::~CPlayerServer()
@@ -130,6 +136,7 @@ bool CPlayerServer::rhPlaying(QByteArray &ba)
         if(it!=game->operations.end())
         {
             COperation *op=it.value();
+            if(op->reply.find(this->position)==op->reply.end()) return true;
             if(!op->finished)
             {
                 QList<QVariant> list;
@@ -168,10 +175,15 @@ bool CPlayerServer::rhPlaying(QByteArray &ba)
 
 bool CPlayerServer::checkActiveOperation(quint8 type, QList<QVariant> &list)
 {
+    qDebug("receive active operation");
     switch (type) {
     case OPERATION_USECARD:
-        if(currentPhase!=PHASE_PLAYPHASE||game->currentPosition==this->position)
+        if(!canUseCard)
+        {
+            qDebug("can not use card");
             return false;
+        }
+        canUseCard=false;
         COMPARE(list.isEmpty());
     {
         bool b;
@@ -187,13 +199,15 @@ bool CPlayerServer::checkActiveOperation(quint8 type, QList<QVariant> &list)
             players.append(game->players[i]);
         }
         if(!card->type->cardUseCheck(this,card,players)) return false;
-        card->type->useCard(this,card,players);
+        useCard(card,players);
+        qDebug("usecard");
     }
         break;
     default:
-        break;
+        qDebug("undefined active operation");
+        return false;
     }
-    return false;
+    return true;
 }
 
 bool CPlayerServer::generalOK(quint16 id)
@@ -223,15 +237,39 @@ void CPlayerServer::deliverCard(const QList<CCard *> &cards)
     networkSend(sendbuf);
 }
 
-void CPlayerServer::needSelect(COperation *op)
+void CPlayerServer::needSelect(const QString &, int , const QList<QVariant> values,
+                               const QList<QVariant> &defaultResult, int min, int max)
 {
-    op->needReply(this->position);
-    setDefaultAction(true,GAME->server->operationTimeout,std::bind([=](COperation *op){
-        QList<QVariant> list;
-        list.append((int)0);
-        op->replied(this->position,list);
-    },op));
-    connect(op,op->signalReplied,this,this->handleOperationReplied);
+    CEvent *ev=new CEvent(game);
+    GAME->currentOperation=GAME->newOperation(OPERATION_SELECT);
+    GAME->currentOperation->needReply(this->position);
+    setDefaultAction(true,GAME->server->operationTimeout,std::bind(standardDefaultAction,this,GAME->currentOperation));
+    connect(GAME->currentOperation,GAME->currentOperation->signalReplied,this,this->handleOperationReplied);
+    GAME->currentOperation->send();
+    auto f=std::bind([&](const QList<QVariant> values,const QList<QVariant> &defaultResult,int min,int max){
+        QList<QVariant> &list=GAME->currentOperation->reply[position].second;
+        DoOnDelete d([&](){
+            list=defaultResult;
+            GAME->currentOperation->deliver();
+            selectionList=list;
+            emit game->newData();
+        });
+        QVariant var;
+        if(list.size()<min||list.size()>max) return;
+        foreach (var, defaultResult) {
+            int i=var.toUInt();
+            if(i>=values.size()) return;
+        }
+        d.on=false;
+        GAME->currentOperation->deliver();
+        selectionList=list;
+        emit game->newData();
+    },values,defaultResult,min,max);
+    ev->addFunc(f);
+    if(GAME->currentOperation->finished)
+        emit game->newData();
+    else
+        connect(GAME->currentOperation,GAME->currentOperation->signalFinished,game,game->doFuncs);
 }
 
 void CPlayerServer::handleOperationReplied(quint8 c)
@@ -281,6 +319,7 @@ void CPlayerServer::setOffline(bool b)
 void CPlayerServer::phasePlay()
 {
     game->smartAddFunc([&](){
+        canUseCard=true;
         COperation *op=GAME->newOperation(OPERATION_STARTPHASE);
         op->parameter.append((int)PHASE_PLAYPHASE);
         op->deliver();
@@ -289,16 +328,104 @@ void CPlayerServer::phasePlay()
     setDefaultAction(true,GAME->server->operationTimeout,f);
 }
 
-void CPlayerServer::needPlay(quint16 type, QList<quint8> *type2, int number, CPlayer *from, CCard *card, int playMode,
-    int cardMode)
+void CPlayerServer::needPlay(quint8 suit, quint16 type, const QList<quint8> type2, int number, CPlayer *from, CCard *card, int playMode,
+    int cardMode, const QList<CPlayer *> targets)
 {
-    CPlayer::needPlay(type,type2,number,from,card,playMode,cardMode);
+    CPlayer::needPlay(suit,type,type2,number,from,card,playMode,cardMode,targets);
     COperation *op=GAME->newOperation(OPERATION_NEEDPLAY);
     op->needReply(this->position);
-    setDefaultAction(true,GAME->server->operationTimeout,[&](){
+    setDefaultAction(true,GAME->server->operationTimeout,std::bind(standardDefaultAction,this,op));
+    connect(op,op->signalReplied,this,this->handleOperationReplied);
+    op->send();
+    auto f=std::bind([&](quint8 suit,COperation *op,quint16 type, QList<quint8> type2, int number, CPlayer *from, CCard *card,
+                     int playMode,int cardMode,QList<CPlayer *> targets){
+        CEvent *ev=new CEvent(game);
+        DoOnDelete d([=](){
+            ev->funcs.clear();
+            QList<QVariant> &list=op->reply[this->position].second;
+            list.clear();
+            list.append((int)0);
+            op->deliver();
+            emit game->newData();
+        });
+        QList<QVariant> &list=op->reply[this->position].second;
+        bool b;
+        if(list.size()<1) return;
+        int n=list[0].toUInt(&b);
+        if(!b) return;
+        if(n==10000)
+        {
+            //使用技能
+            return;
+        }
+        if(n!=number||n>=list.size()) return;
+        playedTargets.clear();
+        if(!targets.isEmpty())
+        {
+            for(int i=n+1;i<list.size();i++)
+            {
+                int pos=list[i].toUInt();
+                if(pos>=game->players.size()) return;
+                if(!targets.contains(game->players[pos])) return;
+                playedTargets.append(game->players[pos]);
+            }
+        }
+        else if(n!=list.size()-1)
+            return;
+        QList<CCard*> cards;
+        for(int i=0;i<n;i++)
+        {
+            quint8 id=list[i+1].toUInt(&b);
+            if(!b) return;
+            CCard* cd=CCard::find(id);
+            if(!cd) return;
+            if(!containsCard(cd,cardMode)) return;
+            if(!(suit&cd->suit))
+            if(!(cd->type->type1&type))
+            {
+                if(!type2.contains(cd->type->type2)) return;
+            }
+            cards.append(cd);
+        }
+        d.on=false;
+        op->deliver();
+        this->phaseCallback(PHASE_LOSECARD,&cards,(void*)playMode);
+        if(playMode==PLAYMODE_USE&&number==1)
+        {
+            if(type==CARDTYPE_SHA)
+            {
+                if(playedTargets.isEmpty()) return;
+                if(!cards[0]->type->cardUseCheck(this,cards[0],playedTargets)) return;
+                auto f=std::bind(cards[0]->type->useCard,cards[0]->type,this,cards[0],playedTargets);
+                ev->addFunc(f);
+            }
+        }
+        CCard *cd;
+        foreach (cd, cards) {
+            loseCard(cd);
+            ev->addCard(cd);
+        }
+        auto f=std::bind([&](QList<CCard*> cards){
+            cardPlayed=true;
+            playedCards=cards;
+            //todo:各种phasecallback
+            emit game->newData();
+        },cards);
+        ev->addFunc(f);
+        emit game->newData();
+    },suit,op,type,type2,number,from,card,playMode,cardMode,targets);
+    game->smartInsertFunc(f);
+    if(op->finished)
+        emit game->newData();
+    else
+        connect(op,op->signalFinished,game,game->doFuncs);
+}
 
-    });
-    //networkSend(ba);
+void CPlayerServer::standardDefaultAction(COperation *op)
+{
+    QList<QVariant> list;
+    list.append((int)0);
+    op->replied(this->position,list);
 }
 
 void CPlayerServer::useCard(CCard *card, QList<CPlayer *> &list)
@@ -312,4 +439,68 @@ void CPlayerServer::useCard(CCard *card, QList<CPlayer *> &list)
     }
     op->deliver();
     CPlayer::useCard(card,list);
+    CEvent *ev=game->currentEvent->findParent(EVENT_PHASE);
+    ev->addFunc([&](){
+        canUseCard=true;
+        qDebug("card use over");
+    });
+}
+
+void CPlayerServer::endPlayPhase()
+{
+    canUseCard=false;
+    //emit game->newData();
+}
+
+void CPlayerServer::phaseDiscard()
+{
+    int i;
+    i=0;
+}
+
+void CPlayerServer::needShow()
+{
+    GAME->currentOperation=GAME->newOperation(OPERATION_NEEDSHOW);
+    GAME->currentOperation->needReply(this->position);
+    setDefaultAction(true,GAME->server->operationTimeout,[&](){
+        QList<QVariant> list;
+        list.append(hands[0]->id);
+        GAME->currentOperation->replied(this->position,list);
+    });
+    connect(GAME->currentOperation,GAME->currentOperation->signalReplied,this,this->handleOperationReplied);
+    GAME->currentOperation->send();
+    auto f=[&](){
+        QList<QVariant> &list=GAME->currentOperation->reply[position].second;
+        DoOnDelete d([&](){
+            list.clear();
+            list.append(hands[0]->id);
+            GAME->currentOperation->deliver();
+            selectionList=list;
+            emit game->newData();
+        });
+        if(list.size()!=1) return;
+        int i=list[0].toUInt();
+        CCard *card=CCard::find(i);
+        if(!card||!hands.contains(card)) return;
+        cardShown=card;
+        d.on=false;
+        GAME->currentOperation->deliver();
+        emit game->newData();
+    };
+    GAME->smartInsertFunc(f);
+    if(GAME->currentOperation->finished)
+        emit game->newData();
+    else
+        connect(GAME->currentOperation,COperation::signalFinished,game,game->doFuncs);
+}
+
+void CPlayerServer::getRandomHand(const QList<CPlayer*> &knownList)
+{
+    qsrand(QTime::currentTime().msecsSinceStartOfDay());
+    int r=qrand()%hands.size();
+    cardShown=hands[r];
+    COperation *op=GAME->newOperation(OPERATION_RANDOMHAND);
+    op->parameter.append(cardShown->id);
+    op->selectiveDeliver(knownList);
+    emit game->newData();
 }

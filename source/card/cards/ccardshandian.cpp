@@ -13,3 +13,9 @@ QList<CPlayer*> CCardShanDian::availableTargets(CPlayer *player, CCard *card)
         list.append(player);
     return list;
 }
+
+void CCardShanDian::useCard(CPlayer *player, CCard *card, QList<CPlayer *> &list)
+{
+    list[0]->panDingQuAdd(card);
+    emit player->game->newData();
+}

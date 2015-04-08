@@ -59,11 +59,11 @@ void CEvent::addCard(CCard *card)
 CEvent* CEvent::findParent(int type)
 {
     CEvent* ev=this;
-    while(ev->parent)
+    while(ev)
     {
-        ev=ev->parent;
         if(ev->type==type)
             return ev;
+        ev=ev->parent;
     }
     return nullptr;
 }

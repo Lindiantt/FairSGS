@@ -10,6 +10,7 @@ class MainWindowClient;
 class DialogChooseRoom;
 class DialogChooseGeneral;
 class DialogSelect;
+class DialogPlayerCard;
 
 class MainWindowClient : public QMainWindow
 {
@@ -20,9 +21,11 @@ public:
     ~MainWindowClient();
     void init();
     int closeClient(QWidget *);
+    void hideAll();
     DialogChooseRoom *dialogChooseRoom;
     DialogChooseGeneral *dialogChooseGeneral;
     DialogSelect *dialogSelect;
+    DialogPlayerCard *dialogPlayerCard;
     Ui::MainWindowClient *ui;
     uint roomID;
 

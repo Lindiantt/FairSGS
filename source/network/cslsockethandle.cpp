@@ -170,7 +170,8 @@ void CSLSocketHandle::handleRead()
         ti=tw->item(i,5);
         ti->setText(s);
         //神将
-        k=((*(quint16*)buf)&0b110000000)>>7;
+        k=(buf[0]&1)<<1;
+        k+=(buf[1]&0b10000000)>>7;
         switch (k) {
         case SHENMODE_BAN:
             s="禁止";

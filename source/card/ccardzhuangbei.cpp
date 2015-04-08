@@ -27,3 +27,8 @@ QList<CPlayer*> CCardZhuangbei::availableTargets(CPlayer *player, CCard *)
     list.append(player);
     return list;
 }
+
+void CCardZhuangbei::useCard(CPlayer *, CCard *, QList<CPlayer *> &)
+{
+
+}

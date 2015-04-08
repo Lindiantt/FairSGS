@@ -9,3 +9,8 @@ QList<CPlayer*> CCardWuZhongShengYou::availableTargets(CPlayer *player, CCard *)
     list.append(player);
     return list;
 }
+
+void CCardWuZhongShengYou::useCard(CPlayer *, CCard *, QList<CPlayer *> &)
+{
+
+}
